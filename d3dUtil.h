@@ -51,6 +51,49 @@ public:
 	int LineNumber = -1;
 };
 
+struct MeshGeometry
+{
+	std::string Name;
+
+	Microsoft::WRL::ComPtr<ID3DBlob> VertexBufferCPU = nullptr;
+	Microsoft::WRL::ComPtr<ID3DBlob> IndexBufferCPU = nullptr;
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> VertexBufferGPU = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12Resource> IndexBufferGPU = nullptr;
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> VertexBufferUploader = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12Resource> IndexBufferUploader = nullptr;
+
+	UINT VertexByteStrider = 0;
+	UINT VertexBufferBtyeSize = 0;
+	DXGI_FORMAT IndexFormat = DXGI_FORMAT_R16_UINT;
+	UINT IndexBufferByteSize = 0;
+
+public:
+	D3D12_VERTEX_BUFFER_VIEW VertexBufferView() const 
+	{
+		D3D12_VERTEX_BUFFER_VIEW vbv;
+		vbv.BufferLocation = VertexBufferGPU->GetGPUVirtualAddress();//vbv 首地址
+		vbv.StrideInBytes = VertexByteStrider;//vbv每个元素长度
+		vbv.SizeInBytes = VertexBufferBtyeSize; // vbv总共长度
+		return vbv;
+	}
+
+	D3D12_INDEX_BUFFER_VIEW IndexBufferView() const
+	{
+		D3D12_INDEX_BUFFER_VIEW ibv;
+		ibv.BufferLocation = IndexBufferGPU->GetGPUVirtualAddress();
+		ibv.SizeInBytes = IndexBufferByteSize;
+		ibv.Format = IndexFormat;
+		return ibv;
+	}
+	void DisposeUploaders()
+	{
+		VertexBufferUploader = nullptr;
+		IndexBufferUploader = nullptr;
+	}
+};
+
 #ifndef ThrowIfFailed
 #define ThrowIfFailed(x) \
 {\
