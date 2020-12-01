@@ -19,4 +19,6 @@ public:
 		);
 		return I;
 	}
+
+	static const float Pi;
 };
