@@ -1,6 +1,7 @@
 #include "d3dApp.h"
 #include "MathHelper.h"
 #include "UploadBuffer.h"
+#include "memory"
 
 using Microsoft::WRL::ComPtr;
 using namespace DirectX;
@@ -158,6 +159,15 @@ void BoxApp::Update(const GameTimer& gt)
 
 void BoxApp::Draw(const GameTimer& gt)
 {
+	D3D12_CPU_DESCRIPTOR_HANDLE CurBackV = CurrentBackBufferView();
+	D3D12_CPU_DESCRIPTOR_HANDLE DepthStencilV = DepthStencilView();
+	ID3D12Resource* CurBackBuffer = CurrentBackBuffer();
+
+	CD3DX12_RESOURCE_BARRIER PreResourceBarrier = CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
+		D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+	D3D12_VERTEX_BUFFER_VIEW VertexBufferView = mBoxGeo->VertexBufferView();
+	D3D12_INDEX_BUFFER_VIEW IndexBufferView = mBoxGeo->IndexBufferView();
 	//
 	ThrowIfFailed(mDirectCmdListAlloc->Reset());
 
@@ -168,20 +178,19 @@ void BoxApp::Draw(const GameTimer& gt)
 	mCommandList->RSSetScissorRects(1, &mScissorRect);
 
 	// 
-	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
-		D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
+	mCommandList->ResourceBarrier(1, &PreResourceBarrier);
 
 	// 
-	mCommandList->ClearRenderTargetView(CurrentBackBufferView(), Colors::LightSteelBlue, 0, nullptr);
-	mCommandList->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0, 0,nullptr);
+	mCommandList->ClearRenderTargetView(CurBackV, Colors::LightSteelBlue, 0, nullptr);
+	mCommandList->ClearDepthStencilView(DepthStencilV, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0, 0,nullptr);
 
-	mCommandList->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &DepthStencilView());
+	mCommandList->OMSetRenderTargets(1, &CurBackV, true, &DepthStencilV);
 	ID3D12DescriptorHeap* descriptorHeaps[] = { mCbvHeap.Get() };
 	mCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
 	mCommandList->SetGraphicsRootSignature(mRootSignture.Get());
 
-	mCommandList->IASetVertexBuffers(0, 1, &mBoxGeo->VertexBufferView()); //  设置vbo
-	mCommandList->IASetIndexBuffer(&mBoxGeo->IndexBufferView()); //设置ibo
+	mCommandList->IASetVertexBuffers(0, 1, &VertexBufferView); //  设置vbo
+	mCommandList->IASetIndexBuffer(&IndexBufferView); //设置ibo
 	mCommandList->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);//  设置渲染模式(点,线,三角)
 
 	mCommandList->SetGraphicsRootDescriptorTable(0, mCbvHeap->GetGPUDescriptorHandleForHeapStart());//将描述符表设置到图形根签名中。
