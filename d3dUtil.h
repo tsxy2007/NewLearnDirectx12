@@ -37,6 +37,20 @@ public:
 	{
 		return (byteSize + 255) & ~255;
 	}
+	
+	static Microsoft::WRL::ComPtr<ID3D12Resource> CreateDefaultBuffer(
+		ID3D12Device* device,
+		ID3D12GraphicsCommandList* cmdList,
+		const void* initData,
+		UINT64 byteSize,
+		Microsoft::WRL::ComPtr<ID3D12Resource>& uploadBuffer);
+
+	static Microsoft::WRL::ComPtr<ID3DBlob> CompileShader(
+		const std::wstring& filename,
+		const D3D_SHADER_MACRO* defines,
+		const std::string& entrypoint,
+		const std::string& target
+	);
 };
 
 class DxException
@@ -50,6 +64,17 @@ public:
 	std::wstring FunctionName;
 	std::wstring FileName;
 	int LineNumber = -1;
+};
+
+struct SubmeshGeometry 
+{
+	UINT IndexCount = 0;
+	UINT StartIndexLocation = 0;
+	INT BaseVertexLocation = 0;
+
+	// Bounding box of the geometry defined by this submesh. 
+	// This is used in later chapters of the book.
+	DirectX::BoundingBox Bounds;
 };
 
 struct MeshGeometry
@@ -70,6 +95,7 @@ struct MeshGeometry
 	DXGI_FORMAT IndexFormat = DXGI_FORMAT_R16_UINT;
 	UINT IndexBufferByteSize = 0;
 
+	std::unordered_map<std::string, SubmeshGeometry> DrawArgs;
 public:
 	D3D12_VERTEX_BUFFER_VIEW VertexBufferView() const 
 	{
