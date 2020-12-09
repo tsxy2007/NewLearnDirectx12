@@ -7,7 +7,7 @@
 using Microsoft::WRL::ComPtr;
 using namespace DirectX;
 using namespace DirectX::PackedVector;
-
+using namespace _BOX_;
 
 class BoxApp : public D3DApp
 {
@@ -145,7 +145,7 @@ void BoxApp::Update(const GameTimer& gt)
 
 
 	// 更新cbv 
-	ObjectConstants objConstants;
+	_BOX_::ObjectConstants objConstants;
 	XMStoreFloat4x4(&objConstants.WorldViewProj, XMMatrixTranspose(worldViewProj));
 	mObjectCB->CopyData(0, objConstants);
 }
