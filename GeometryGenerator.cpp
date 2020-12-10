@@ -173,6 +173,235 @@ GeometryGenerator::MeshData GeometryGenerator::CreateSphere(float radius, uint32
 	return meshData;
 }
 
+GeometryGenerator::MeshData GeometryGenerator::CreateGeosphere(float radius, uint32 numSubdivisions)
+{
+	MeshData meshData;
+	numSubdivisions = std::min<uint32>(numSubdivisions, 6u);
+
+	const float X = 0.525731f;
+	const float Z = 0.850651f;
+
+	XMFLOAT3 pos[12] =
+	{
+		XMFLOAT3(-X,0.f,Z),XMFLOAT3(X,0.f,Z),
+		XMFLOAT3(-X,0.f,-Z),XMFLOAT3(X,0.f,-Z),
+		XMFLOAT3(0.f,Z,X),XMFLOAT3(0.f,Z,-X),
+		XMFLOAT3(0.f,-Z,X),XMFLOAT3(0.f,-Z,-X),
+		XMFLOAT3(Z,X,0.f),XMFLOAT3(-Z,X,0.f),
+		XMFLOAT3(Z,-X,0.f),XMFLOAT3(-Z,-X,0.f)
+	};
+
+	uint32 k[60] =
+	{
+		1,4,0,  4,9,0,  4,5,9,  8,5,4,  1,8,4,
+		1,10,8, 10,3,8, 8,3,5,  3,2,5,  3,7,2,
+		3,10,7, 10,6,7, 6,11,7, 6,0,11, 6,1,0,
+		10,1,6, 11,0,9, 2,11,9, 5,2,9,  11,2,7
+	};
+
+	meshData.Vertices.resize(12);
+	meshData.Indices32.assign(&k[0], &k[60]);
+
+	for (uint32 i = 0; i < 12; ++i)
+		meshData.Vertices[i].Position = pos[i];
+
+	for (uint32 i = 0; i < numSubdivisions; ++i)
+		Subdivide(meshData);
+
+	for (uint32 i = 0; i < meshData.Vertices.size(); ++i)
+	{
+		// Project onto unit sphere.
+		XMVECTOR n = XMVector3Normalize(XMLoadFloat3(&meshData.Vertices[i].Position));
+
+		// Project onto sphere.
+		XMVECTOR p = radius * n;
+
+		XMStoreFloat3(&meshData.Vertices[i].Position, p);
+		XMStoreFloat3(&meshData.Vertices[i].Normal, n);
+
+		// Derive texture coordinates from spherical coordinates.
+		float theta = atan2f(meshData.Vertices[i].Position.z, meshData.Vertices[i].Position.x);
+
+		// Put in [0, 2pi].
+		if (theta < 0.0f)
+			theta += XM_2PI;
+
+		float phi = acosf(meshData.Vertices[i].Position.y / radius);
+
+		meshData.Vertices[i].TexC.x = theta / XM_2PI;
+		meshData.Vertices[i].TexC.y = phi / XM_PI;
+
+		// Partial derivative of P with respect to theta
+		meshData.Vertices[i].TangentU.x = -radius * sinf(phi) * sinf(theta);
+		meshData.Vertices[i].TangentU.y = 0.0f;
+		meshData.Vertices[i].TangentU.z = +radius * sinf(phi) * cosf(theta);
+
+		XMVECTOR T = XMLoadFloat3(&meshData.Vertices[i].TangentU);
+		XMStoreFloat3(&meshData.Vertices[i].TangentU, XMVector3Normalize(T));
+	}
+	return meshData;
+}
+
+GeometryGenerator::MeshData GeometryGenerator::CreateCylinder(float bottomRadius, float topRadius, float height, uint32 sliceCount, uint32 stackCount, uint32 numSubdivisions /*= 0*/)
+{
+	MeshData meshData;
+
+	float stackHeight = height / stackCount;
+	float radiusStep = (topRadius - bottomRadius) / stackCount;
+	uint32 ringCount = stackCount + 1;
+
+	for (uint32 i = 0; i < ringCount; i++)
+	{
+		float y = -0.5f * height + i * stackHeight;
+		float r = bottomRadius + i * radiusStep;
+
+		float dTheta = XM_2PI / sliceCount;
+		for (uint32 j = 0 ;j<sliceCount + 1;j++)
+		{
+			float c = cosf(dTheta * j);
+			float s = sinf(dTheta * j);
+			float x = r * c;
+			float z = r * s;
+			Vertex v;
+			v.Position = XMFLOAT3(x, y, z);
+			v.TangentU = XMFLOAT3(s, 0, c);
+			v.TexC = XMFLOAT2((float)j / sliceCount, 1.0f - (float)i / stackCount);
+
+
+			float dr = bottomRadius - topRadius;
+			XMFLOAT3 bitangent(dr * c, -height, dr * s);
+
+			XMVECTOR T = XMLoadFloat3(&v.TangentU);
+			XMVECTOR B = XMLoadFloat3(&bitangent);
+			XMVECTOR N = XMVector3Normalize(XMVector3Cross(T, B));
+			XMStoreFloat3(&v.Normal, N);
+
+			meshData.Vertices.push_back(v);
+		}
+	}
+	uint32 ringVertexCount = sliceCount + 1;
+	for (uint32 i = 0 ;i<stackCount;i++)
+	{
+		for (uint32 j = 0; j < sliceCount; j++)
+		{
+
+			meshData.Indices32.push_back(i * ringVertexCount + j);
+			meshData.Indices32.push_back((i + 1) * ringVertexCount + j);
+			meshData.Indices32.push_back((i + 1) * ringVertexCount + j + 1);
+
+			meshData.Indices32.push_back(i * ringVertexCount + j);
+			meshData.Indices32.push_back((i + 1) * ringVertexCount + j + 1);
+			meshData.Indices32.push_back(i * ringVertexCount + j + 1);
+		}
+	}
+
+	BuildCylinderTopCap(bottomRadius, topRadius, height, sliceCount, stackCount, meshData);
+	BuildCylinderBottomCap(bottomRadius, topRadius, height, sliceCount, stackCount, meshData);
+
+	for (uint32 i = 0 ;i< numSubdivisions;i++)
+	{
+		Subdivide(meshData);
+	}
+	return meshData;
+}
+
+GeometryGenerator::MeshData GeometryGenerator::CreateGrid(float width, float depth, uint32 m, uint32 n)
+{
+	MeshData meshData;
+	uint32 vertexCount = m * n;
+	//
+	// Create the vertices.
+	//
+
+	uint32 row = m + 1;
+	uint32 col = n + 1;
+	float halfWidth = 0.5f * width;
+	float halfDepth = 0.5f * depth;
+
+	float dx = width / m;
+	float dz = depth / n;
+
+	float du = 1.0f / m;
+	float dv = 1.0f / n;
+	meshData.Vertices.resize((m+1) * (n +1));
+	for (uint32 i = 0;i<col ;i++)
+	{
+		float z = halfDepth - i * dz;
+		for (uint32 j = 0;j<row;j++)
+		{
+			float x = -halfWidth + j * dx;
+			Vertex& vertex = meshData.Vertices[i * row + j];
+			vertex.Position = { x,0.f,z };
+			vertex.Normal = { 0.f,1.f,0.f };
+			vertex.TangentU = { 1.f,0.f,0.f };
+			vertex.TexC = { j * du,i * dv };
+		}
+	}
+
+	meshData.Indices32.resize(m * n * 3 * 2);
+
+	uint32 k = 0;
+	for (uint32 i = 0; i < n; i++)
+	{
+		for (uint32 j = 0; j < m; j++)
+		{
+			meshData.Indices32[k] = i * row + j;
+			meshData.Indices32[k + 1] = i * row + j + 1;
+			meshData.Indices32[k + 2] = (i + 1) * row + j + 1;
+
+			meshData.Indices32[k + 3] = i * row + j;
+			meshData.Indices32[k + 4] = (i + 1) * row + j + 1;
+			meshData.Indices32[k + 5] = (i + 1) * row + j;
+			k += 6;
+		}
+	}
+
+	return meshData;
+}
+
+GeometryGenerator::MeshData GeometryGenerator::CreateQuad(float x, float y, float w, float h, float depth)
+{
+	MeshData meshData;
+
+	meshData.Vertices.resize(4);
+	meshData.Indices32.resize(6);
+
+	// Position coordinates specified in NDC space.
+	meshData.Vertices[0] = Vertex(
+		x, y - h, depth,
+		0.0f, 0.0f, -1.0f,
+		1.0f, 0.0f, 0.0f,
+		0.0f, 1.0f);
+
+	meshData.Vertices[1] = Vertex(
+		x, y, depth,
+		0.0f, 0.0f, -1.0f,
+		1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f);
+
+	meshData.Vertices[2] = Vertex(
+		x + w, y, depth,
+		0.0f, 0.0f, -1.0f,
+		1.0f, 0.0f, 0.0f,
+		1.0f, 0.0f);
+
+	meshData.Vertices[3] = Vertex(
+		x + w, y - h, depth,
+		0.0f, 0.0f, -1.0f,
+		1.0f, 0.0f, 0.0f,
+		1.0f, 1.0f);
+
+	meshData.Indices32[0] = 0;
+	meshData.Indices32[1] = 1;
+	meshData.Indices32[2] = 2;
+
+	meshData.Indices32[3] = 0;
+	meshData.Indices32[4] = 2;
+	meshData.Indices32[5] = 3;
+
+	return meshData;
+}
+
 void GeometryGenerator::Subdivide(MeshData& meshData)
 {
 	// Save a copy of the input geometry.
@@ -264,5 +493,69 @@ GeometryGenerator::Vertex GeometryGenerator::MidPoint(const Vertex& v0, const Ve
 	XMStoreFloat2(&v.TexC, tex);
 
 	return v;
+}
+
+void GeometryGenerator::BuildCylinderTopCap(float bottomRadius, float topRadius, float height, uint32 sliceCount, uint32 stackCount, MeshData& meshData)
+{
+	uint32 baseIndex = (uint32)meshData.Vertices.size();
+
+	float y = 0.5f * height;
+	float dTheta = 2.0f * XM_PI / sliceCount;
+
+
+	for (size_t i = 0; i <= sliceCount; i++)
+	{
+		float x = topRadius * cosf(i * dTheta);
+		float z = topRadius * sinf(i * dTheta);
+
+		float u = x / height + 0.5f;
+		float v = z / height + 0.5f;
+
+		meshData.Vertices.push_back(Vertex(x, y, z, 0.f, 1.f, 0.f, 1.f, 0.f, 0.f, u, v));
+	}
+
+	meshData.Vertices.push_back(Vertex(0, y, 0, 0.f, 1.f, 0.f, 1.f, 0.f, 0.f, 0.5f, 0.5f));
+
+	// Index of center vertex.
+	uint32 centerIndex = (uint32)meshData.Vertices.size() - 1;
+
+	for (uint32 i = 0; i < sliceCount; ++i)
+	{
+		meshData.Indices32.push_back(centerIndex);
+		meshData.Indices32.push_back(baseIndex + i + 1);
+		meshData.Indices32.push_back(baseIndex + i);
+	}
+}
+
+void GeometryGenerator::BuildCylinderBottomCap(float bottomRadius, float topRadius, float height, uint32 sliceCount, uint32 stackCount, MeshData& meshData)
+{
+	uint32 baseIndex = (uint32)meshData.Vertices.size();
+
+	float y = -0.5f * height;
+	float dTheta = 2.0f * XM_PI / sliceCount;
+
+
+	for (size_t i = 0; i <= sliceCount; i++)
+	{
+		float x = bottomRadius * cosf(i * dTheta);
+		float z = bottomRadius * sinf(i * dTheta);
+
+		float u = x / height + 0.5f;
+		float v = z / height + 0.5f;
+
+		meshData.Vertices.push_back(Vertex(x, y, z, 0.f, -1.f, 0.f, 1.f, 0.f, 0.f, u, v));
+	}
+
+	meshData.Vertices.push_back(Vertex(0, y, 0, 0.f, -1.f, 0.f, 1.f, 0.f, 0.f, 0.5f, 0.5f));
+
+	// Index of center vertex.
+	uint32 centerIndex = (uint32)meshData.Vertices.size() - 1;
+
+	for (uint32 i = 0; i < sliceCount; ++i)
+	{
+		meshData.Indices32.push_back(centerIndex);
+		meshData.Indices32.push_back(baseIndex + i);
+		meshData.Indices32.push_back(baseIndex + i + 1);
+	}
 }
 

@@ -487,13 +487,22 @@ void ShapesApp::BuildShapeGeometry()
 {
 	GeometryGenerator geoGen;
 	GeometryGenerator::MeshData box = geoGen.CreateBox(1.5f, 0.5f, 1.5f, 3);
-	GeometryGenerator::MeshData sphere = geoGen.CreateSphere(0.5f, 15, 15);
+	GeometryGenerator::MeshData sphere = geoGen.CreateGeosphere(0.5f,3);// geoGen.CreateSphere(0.5f, 15, 15);
+	GeometryGenerator::MeshData cylinder = geoGen.CreateCylinder(0.5f, 0.3f,1.f, 20, 20,2);
+	GeometryGenerator::MeshData grid = geoGen.CreateGrid(1.5f, 1.5f, 2, 3);
+	GeometryGenerator::MeshData quad = geoGen.CreateQuad(1.f, 1.f, 1.f, 1.f, 1.f);
 
 	UINT boxVertexOffset = 0;
 	UINT sphereVertexOffset = boxVertexOffset + (UINT)box.Vertices.size();
+	UINT cylinderVertexOffset = sphereVertexOffset + (UINT)sphere.Vertices.size();
+	UINT gridVertexOffset = cylinderVertexOffset + (UINT)cylinder.Vertices.size();
+	UINT quadVertexOffset = gridVertexOffset + (UINT)grid.Vertices.size();
 	
 	UINT boxIndexOffset = 0;
 	UINT sphereIndexOffset = boxIndexOffset + (UINT)box.Indices32.size();
+	UINT cylinderIndexOffset = sphereIndexOffset + (UINT)sphere.Indices32.size();
+	UINT gridIndexOffset = cylinderIndexOffset + (UINT)cylinder.Indices32.size();
+	UINT quadIndexOffset = gridIndexOffset + (UINT)grid.Indices32.size();
 
 	SubmeshGeometry boxSubmesh;
 	boxSubmesh.IndexCount = (UINT)box.Indices32.size();
@@ -505,9 +514,27 @@ void ShapesApp::BuildShapeGeometry()
 	sphereSubmesh.StartIndexLocation = sphereIndexOffset;
 	sphereSubmesh.BaseVertexLocation = sphereVertexOffset;
 
+	SubmeshGeometry cylinderSubmesh;
+	cylinderSubmesh.IndexCount = (UINT)cylinder.Indices32.size();
+	cylinderSubmesh.StartIndexLocation = cylinderIndexOffset;
+	cylinderSubmesh.BaseVertexLocation = cylinderVertexOffset;
 
-	auto totalVertexCount = box.Vertices.size() + 
-		sphere.Vertices.size();
+	SubmeshGeometry gridSubmesh;
+	gridSubmesh.IndexCount = (UINT)grid.Indices32.size();
+	gridSubmesh.StartIndexLocation = gridIndexOffset;
+	gridSubmesh.BaseVertexLocation = gridVertexOffset;
+
+	SubmeshGeometry quadSubmesh;
+	quadSubmesh.IndexCount = (UINT)quad.Indices32.size();
+	quadSubmesh.StartIndexLocation = quadIndexOffset;
+	quadSubmesh.BaseVertexLocation = quadVertexOffset;
+
+
+	auto totalVertexCount = box.Vertices.size()
+		+ sphere.Vertices.size()
+		+ cylinder.Vertices.size()
+		+ grid.Vertices.size()
+		+quad.Vertices.size();
 
 	std::vector<Vertex> vertices(totalVertexCount);
 
@@ -522,10 +549,30 @@ void ShapesApp::BuildShapeGeometry()
 		vertices[k].Pos = sphere.Vertices[i].Position;
 		vertices[k].Color = XMFLOAT4(DirectX::Colors::Blue);
 	}
+	for (size_t i = 0; i < cylinder.Vertices.size(); i++, k++)
+	{
+		vertices[k].Pos = cylinder.Vertices[i].Position;
+		vertices[k].Color = XMFLOAT4(DirectX::Colors::Green);
+	}
+
+	for (size_t i = 0; i < grid.Vertices.size(); i++, k++)
+	{
+		vertices[k].Pos = grid.Vertices[i].Position;
+		vertices[k].Color = XMFLOAT4(DirectX::Colors::Yellow);
+	}
+
+	for (size_t i = 0; i < quad.Vertices.size(); i++, k++)
+	{
+		vertices[k].Pos = quad.Vertices[i].Position;
+		vertices[k].Color = XMFLOAT4(DirectX::Colors::White);
+	}
 
 	std::vector<std::uint16_t> indices;
 	indices.insert(indices.end(), std::begin(box.GetIndices16()), std::end(box.GetIndices16()));
 	indices.insert(indices.end(), std::begin(sphere.GetIndices16()), std::end(sphere.GetIndices16()));
+	indices.insert(indices.end(), std::begin(cylinder.GetIndices16()), std::end(cylinder.GetIndices16()));
+	indices.insert(indices.end(), std::begin(grid.GetIndices16()), std::end(grid.GetIndices16()));
+	indices.insert(indices.end(), std::begin(quad.GetIndices16()), std::end(quad.GetIndices16()));
 
 	const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
 	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
@@ -552,6 +599,9 @@ void ShapesApp::BuildShapeGeometry()
 
 	geo->DrawArgs["box"] = boxSubmesh;
 	geo->DrawArgs["sphere"] = sphereSubmesh;
+	geo->DrawArgs["cylinder"] = cylinderSubmesh;
+	geo->DrawArgs["grid"] = gridSubmesh;
+	geo->DrawArgs["quad"] = quadSubmesh;
 
 	mGeometries[geo->Name] = std::move(geo);
 }
@@ -625,6 +675,38 @@ void ShapesApp::BuildRenderItems()
 	sphereRitem->StartIndexLocation = sphereRitem->Geo->DrawArgs["sphere"].StartIndexLocation;
 	sphereRitem->BaseVertexLocation = sphereRitem->Geo->DrawArgs["sphere"].BaseVertexLocation;
 	mAllRitems.push_back(std::move(sphereRitem));
+
+
+	auto cylinderRitem = std::make_unique<RenderItem>();
+	XMStoreFloat4x4(&cylinderRitem->World, XMMatrixScaling(2.0f, 2.0f, 2.0f) * XMMatrixTranslation(0.0f, 1.5f, -5.0f));
+	cylinderRitem->ObjCBIndex = 2;
+	cylinderRitem->Geo = mGeometries["shapeGeo"].get();
+	cylinderRitem->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	cylinderRitem->IndexCount = cylinderRitem->Geo->DrawArgs["cylinder"].IndexCount;
+	cylinderRitem->StartIndexLocation = cylinderRitem->Geo->DrawArgs["cylinder"].StartIndexLocation;
+	cylinderRitem->BaseVertexLocation = cylinderRitem->Geo->DrawArgs["cylinder"].BaseVertexLocation;
+	mAllRitems.push_back(std::move(cylinderRitem));
+
+
+	auto gridRitem = std::make_unique<RenderItem>();
+	XMStoreFloat4x4(&gridRitem->World, XMMatrixScaling(2.0f, 2.0f, 2.0f) * XMMatrixTranslation(0.0f, 0.5f, 0.0f));
+	gridRitem->ObjCBIndex = 3;
+	gridRitem->Geo = mGeometries["shapeGeo"].get();
+	gridRitem->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	gridRitem->IndexCount = gridRitem->Geo->DrawArgs["grid"].IndexCount;
+	gridRitem->StartIndexLocation = gridRitem->Geo->DrawArgs["grid"].StartIndexLocation;
+	gridRitem->BaseVertexLocation = gridRitem->Geo->DrawArgs["grid"].BaseVertexLocation;
+	mAllRitems.push_back(std::move(gridRitem));
+
+	auto quadRitem = std::make_unique<RenderItem>();
+	XMStoreFloat4x4(&quadRitem->World, XMMatrixScaling(2.0f, 2.0f, 2.0f) * XMMatrixTranslation(0.0f, 3.5f, 0.0f));
+	quadRitem->ObjCBIndex = 4;
+	quadRitem->Geo = mGeometries["shapeGeo"].get();
+	quadRitem->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	quadRitem->IndexCount = quadRitem->Geo->DrawArgs["quad"].IndexCount;
+	quadRitem->StartIndexLocation = quadRitem->Geo->DrawArgs["quad"].StartIndexLocation;
+	quadRitem->BaseVertexLocation = quadRitem->Geo->DrawArgs["quad"].BaseVertexLocation;
+	mAllRitems.push_back(std::move(quadRitem));
 
 	for (auto& Item : mAllRitems)
 	{
