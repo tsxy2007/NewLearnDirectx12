@@ -458,19 +458,27 @@ void ShapesApp::BuildShapeGeometry()
 {
 	GeometryGenerator geoGen;
 	GeometryGenerator::MeshData box = geoGen.CreateBox(1.5f, 0.5f, 1.5f, 3);
-	
+	GeometryGenerator::MeshData sphere = geoGen.CreateSphere(0.5f, 15, 15);
 
 	UINT boxVertexOffset = 0;
+	UINT sphereVertexOffset = boxVertexOffset + (UINT)box.Vertices.size();
 	
 	UINT boxIndexOffset = 0;
+	UINT sphereIndexOffset = boxIndexOffset + (UINT)box.Indices32.size();
 
 	SubmeshGeometry boxSubmesh;
 	boxSubmesh.IndexCount = (UINT)box.Indices32.size();
 	boxSubmesh.StartIndexLocation = boxIndexOffset;
 	boxSubmesh.BaseVertexLocation = boxVertexOffset;
 
+	SubmeshGeometry sphereSubmesh;
+	sphereSubmesh.IndexCount = (UINT)sphere.Indices32.size();
+	sphereSubmesh.StartIndexLocation = sphereIndexOffset;
+	sphereSubmesh.BaseVertexLocation = sphereVertexOffset;
 
-	auto totalVertexCount = box.Vertices.size();
+
+	auto totalVertexCount = box.Vertices.size() + 
+		sphere.Vertices.size();
 
 	std::vector<Vertex> vertices(totalVertexCount);
 
@@ -480,9 +488,15 @@ void ShapesApp::BuildShapeGeometry()
 		vertices[k].Pos = box.Vertices[i].Position;
 		vertices[k].Color = XMFLOAT4(DirectX::Colors::DarkGreen);
 	}
+	for (size_t i = 0; i < sphere.Vertices.size(); i++, k++)
+	{
+		vertices[k].Pos = sphere.Vertices[i].Position;
+		vertices[k].Color = XMFLOAT4(DirectX::Colors::Blue);
+	}
 
 	std::vector<std::uint16_t> indices;
 	indices.insert(indices.end(), std::begin(box.GetIndices16()), std::end(box.GetIndices16()));
+	indices.insert(indices.end(), std::begin(sphere.GetIndices16()), std::end(sphere.GetIndices16()));
 
 	const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
 	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
@@ -508,6 +522,7 @@ void ShapesApp::BuildShapeGeometry()
 	geo->IndexBufferByteSize = ibByteSize;
 
 	geo->DrawArgs["box"] = boxSubmesh;
+	geo->DrawArgs["sphere"] = sphereSubmesh;
 
 	mGeometries[geo->Name] = std::move(geo);
 }
@@ -570,6 +585,17 @@ void ShapesApp::BuildRenderItems()
 	boxRitem->StartIndexLocation = boxRitem->Geo->DrawArgs["box"].StartIndexLocation;
 	boxRitem->BaseVertexLocation = boxRitem->Geo->DrawArgs["box"].BaseVertexLocation;
 	mAllRitems.push_back(std::move(boxRitem));
+
+
+	auto sphereRitem = std::make_unique<RenderItem>();
+	XMStoreFloat4x4(&sphereRitem->World, XMMatrixScaling(2.0f, 2.0f, 2.0f) * XMMatrixTranslation(0.0f, 1.5f, 1.0f));
+	sphereRitem->ObjCBIndex = 1;
+	sphereRitem->Geo = mGeometries["shapeGeo"].get();
+	sphereRitem->PrimitiveType = D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	sphereRitem->IndexCount = sphereRitem->Geo->DrawArgs["sphere"].IndexCount;
+	sphereRitem->StartIndexLocation = sphereRitem->Geo->DrawArgs["sphere"].StartIndexLocation;
+	sphereRitem->BaseVertexLocation = sphereRitem->Geo->DrawArgs["sphere"].BaseVertexLocation;
+	mAllRitems.push_back(std::move(sphereRitem));
 
 	for (auto& Item : mAllRitems)
 	{
