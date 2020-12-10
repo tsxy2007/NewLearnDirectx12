@@ -64,6 +64,10 @@ public:
 	MeshData CreateBox(float width, float height, float depth, uint32 numSubdivisions);
 
 	MeshData CreateSphere(float radius, uint32 sliceCount, uint32 stackCount);
+
+	MeshData CreateGeosphere(float radius, uint32 numSubdivisions);
+
+	MeshData CreateCylinder(float bottomRadius, float topRadius, float height, float sliceCount, uint32 stackCount);
 private:
 	void Subdivide(MeshData& meshData);
 	Vertex MidPoint(const Vertex& v0, const Vertex& v1);

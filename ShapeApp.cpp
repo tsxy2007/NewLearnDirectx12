@@ -487,7 +487,7 @@ void ShapesApp::BuildShapeGeometry()
 {
 	GeometryGenerator geoGen;
 	GeometryGenerator::MeshData box = geoGen.CreateBox(1.5f, 0.5f, 1.5f, 3);
-	GeometryGenerator::MeshData sphere = geoGen.CreateSphere(0.5f, 15, 15);
+	GeometryGenerator::MeshData sphere = geoGen.CreateGeosphere(0.5f,3);// geoGen.CreateSphere(0.5f, 15, 15);
 
 	UINT boxVertexOffset = 0;
 	UINT sphereVertexOffset = boxVertexOffset + (UINT)box.Vertices.size();
