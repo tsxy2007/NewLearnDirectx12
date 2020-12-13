@@ -11,6 +11,8 @@ using _NORMAL_::ObjectConstants;
 
 const int gNumberFrameResources = 3;
 
+
+
 struct RenderItem
 {
 	RenderItem() = default;
@@ -30,6 +32,7 @@ struct RenderItem
 	UINT StartIndexLocation = 0;
 	int BaseVertexLocation = 0;
 };
+
 
 class ShapesApp : public D3DApp
 {

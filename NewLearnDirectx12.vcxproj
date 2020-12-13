@@ -149,8 +149,10 @@
     <ClInclude Include="FrameResource.h" />
     <ClInclude Include="GameTimer.h" />
     <ClInclude Include="GeometryGenerator.h" />
+    <ClInclude Include="LandAndWavesApp.h" />
     <ClInclude Include="MathHelper.h" />
     <ClInclude Include="UploadBuffer.h" />
+    <ClInclude Include="Waves.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BoxApp.cpp" />
@@ -159,8 +161,10 @@
     <ClCompile Include="FrameResource.cpp" />
     <ClCompile Include="GameTimer.cpp" />
     <ClCompile Include="GeometryGenerator.cpp" />
+    <ClCompile Include="LandAndWavesApp.cpp" />
     <ClCompile Include="MathHelper.cpp" />
     <ClCompile Include="ShapeApp.cpp" />
+    <ClCompile Include="Waves.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
