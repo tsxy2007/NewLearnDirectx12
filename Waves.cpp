@@ -1,0 +1,100 @@
+#include "Waves.h"
+#include <ppl.h>
+#include <algorithm>
+#include <vector>
+#include <cassert>
+
+using namespace DirectX;
+
+Waves::Waves(int m, int n, float dx, float dt, float speed, float damping)
+{
+	mNumCols = n + 1;
+	mNumRows = m + 1;
+
+	mVertexCount = (m + 1) * (n + 1);
+	mTriangleCount = m * n * 2;
+
+	mTimeStep = dt;
+	mSpatialStep = dx;
+
+	float d = damping * dt + 2.0f;
+	float e = (speed * speed) * (dt * dt) / (dx * dx);
+	mK1 = (damping * dt - 2.0f) / d;
+	mK2 = (4.f - 8.f * e) / d;
+	mK3 = (2.f * e) / d;
+
+	mPrevSolution.resize(mVertexCount);
+	mCurrSolution.resize(mVertexCount);
+	mNormals.resize(mVertexCount);
+	mTangentX.resize(mVertexCount);
+
+	float halfWidth = n * dx * 0.5f;
+	float halfheight = m * dx * 0.5f;
+
+	for (int i = 0 ;i<m+1;i++)
+	{
+		float z = halfheight - i * dx;
+		for (int j = 0 ;j<n+1;++j)
+		{
+			float x = halfWidth - j * dx;
+			mPrevSolution[i * n + j] = XMFLOAT3(x, 0.0f, z);
+			mCurrSolution[i * n + j] = XMFLOAT3(x, 0.f, z);
+			mNormals[i * n + j] = XMFLOAT3(0.f, 1.f, 0.f);
+			mPrevSolution[i * n + j] = XMFLOAT3(1.f, 0.f, 0.f);
+		}
+	}
+}
+
+Waves::~Waves()
+{
+
+}
+
+int Waves::RowCount() const
+{
+	return mNumRows;
+}
+
+int Waves::ColumnCount() const
+{
+	return mNumCols;
+}
+
+int Waves::VertexCount() const
+{
+	return mVertexCount;
+}
+
+int Waves::TriangleCount() const
+{
+	return mTriangleCount;
+}
+
+float Waves::Width() const
+{
+	return mNumCols * mSpatialStep;
+}
+
+float Waves::Depth() const
+{
+	return mNumRows * mSpatialStep;
+}
+
+void Waves::Update(float dt)
+{
+
+}
+
+void Waves::Disturb(int i, int j, float magnitude)
+{
+	assert(i > 1 && i < mNumRows - 1);
+	assert(j > 1 && j < mNumCols - 1);
+
+	float halfMag = 0.5f * magnitude;
+
+	mCurrSolution[i * mNumCols + j].y += magnitude;
+	mCurrSolution[i * mNumCols + j + 1].y += halfMag;
+	mCurrSolution[i * mNumCols + j - 1].y += halfMag;
+
+}
+
