@@ -9,6 +9,21 @@ class MathHelper
 {
 public:
 
+	static float RandF()
+	{
+		return (float)(rand()) / (float)RAND_MAX;
+	}
+
+	static float RandF(float a, float b)
+	{
+		return a + RandF() * (b - a);
+	}
+
+	static int Rand(int a, int b)
+	{
+		return a + rand() % ((b - a) + 1);
+	}
+
 	static DirectX::XMFLOAT4X4 Identity4x4()
 	{
 		static DirectX::XMFLOAT4X4 I(

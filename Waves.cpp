@@ -88,16 +88,42 @@ void Waves::Update(float dt)
 	{
 		concurrency::parallel_for(1, mNumRows - 1, [this](int i) 
 			{
-				for (int i = 1; i < mNumCols - 1; i++)
+				for (int j = 1; j < mNumCols - 1; j++)
 				{
-					mPrevSolution[i*mNumCols+j].y = 
-					mK1*mPrevSolution[i*mNumCols+j].y+
-					mK2 *mCurrSolution[i*mNumCols+j].y+
-						mK3 * ( mCurrSolution[]
-
-						)
+					mPrevSolution[i * mNumCols + j].y =
+						mK1 * mPrevSolution[i * mNumCols + j].y +
+						mK2 * mCurrSolution[i * mNumCols + j].y +
+						mK3 * (mCurrSolution[(i + 1) * mNumCols + j].y +
+							mCurrSolution[(i - 1) * mNumCols + j].y +
+							mCurrSolution[i * mNumCols + j + 1].y +
+							mCurrSolution[i * mNumCols + j - 1].y);
 				}
 			});
+
+		std::swap(mPrevSolution, mCurrSolution);
+
+		t = 0.f;
+
+		concurrency::parallel_for(1, mNumRows - 1, [this](int i){
+			for (int j = 1; j = mNumCols - 1; ++j)
+			{
+				float l = mCurrSolution[i * mNumCols + j - 1].y;
+				float r = mCurrSolution[i * mNumCols + j + 1].y;
+				float t = mCurrSolution[(i - 1) * mNumCols + j].y;
+				float b = mCurrSolution[(i + 1) * mNumCols + j].y;
+
+				mNormals[i * mNumCols + j].x = -r + 1;
+				mNormals[i * mNumCols + j].y = 2.f * mSpatialStep;
+				mNormals[i * mNumCols + j].z = b - t;
+
+				XMVECTOR n = XMVector3Normalize(XMLoadFloat3(&mNormals[i * mNumCols + j]));
+				XMStoreFloat3(&mNormals[i * mNumCols + j], n);
+
+				mTangentX[i * mNumCols + j] = XMFLOAT3(2.0f * mSpatialStep, r - l, 0.0f);
+				XMVECTOR T = XMVector3Normalize(XMLoadFloat3(&mTangentX[i * mNumCols + j]));
+				XMStoreFloat3(&mTangentX[i * mNumCols + j], T);
+			}
+		});
 	}
 }
 
