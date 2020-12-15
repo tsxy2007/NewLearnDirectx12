@@ -80,3 +80,8 @@ Microsoft::WRL::ComPtr<ID3DBlob> d3dUtil::CompileShader(const std::wstring& file
 	ThrowIfFailed(hr);
 	return byteCode;
 }
+
+void d3dUtil::LoadFile(const std::string& FilePath)
+{
+	//FILE* f = open(FilePath);
+}

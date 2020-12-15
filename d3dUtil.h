@@ -51,6 +51,8 @@ public:
 		const std::string& entrypoint,
 		const std::string& target
 	);
+
+	void LoadFile(const std::string& FilePath);
 };
 
 class DxException

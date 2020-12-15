@@ -64,6 +64,7 @@ private:
 	void BuildShaderAndInputLayout();
 	void BuildLandGeometry();
 	void BuildWavesGeometryBuffer();
+	void BuildSkullGeometry();
 	void BuildPSOs();
 	void BuildFrameResources();
 	void BuildRenderItems();
@@ -167,6 +168,7 @@ bool LandAndWavesApp::Initialize()
 	BuildShaderAndInputLayout();
 	BuildLandGeometry();
 	BuildWavesGeometryBuffer();
+	BuildSkullGeometry();
 	BuildRenderItems();
 	BuildFrameResources();
 	BuildPSOs();
@@ -204,7 +206,6 @@ void LandAndWavesApp::Update(const GameTimer& gt)
 		WaitForSingleObject(eventHandle, INFINITE);
 		CloseHandle(eventHandle);
 	}
-
 	UpdateObjectCBs(gt);
 	UpdateMainPassCB(gt);
 	UpdateWaves(gt);
@@ -212,27 +213,120 @@ void LandAndWavesApp::Update(const GameTimer& gt)
 
 void LandAndWavesApp::Draw(const GameTimer& gt)
 {
+	auto cmdListAlloc = mCurrFrameResource->CmdListAlloc;
+
+	ThrowIfFailed(cmdListAlloc->Reset());
+
+	std::string PsoName = "opaque";
+	if (mIsWireframe)
+	{
+		PsoName = "opaque_wireframe";
+	}
+	ThrowIfFailed(mCommandList->Reset(cmdListAlloc.Get(), mPSOs[PsoName].Get()));
+	mCommandList->RSSetViewports(1, &mScreenViewport);
+	mCommandList->RSSetScissorRects(1, &mScissorRect);
+
+	mCommandList->ResourceBarrier(1,
+		&CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
+			D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET
+		));
+
+	mCommandList->ClearRenderTargetView(CurrentBackBufferView(), Colors::LightSteelBlue, 0, nullptr);
+	mCommandList->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+
+	mCommandList->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &DepthStencilView());
+	mCommandList->SetGraphicsRootSignature(mRootSignature.Get());
+
+
+	// Bind per-pass constant buffer.  We only need to do this once per-pass.
+	auto passCB = mCurrFrameResource->PassCB->Resource();
+	mCommandList->SetGraphicsRootConstantBufferView(1, passCB->GetGPUVirtualAddress());
+
+	float Radius = 1.f;
+	mCommandList->SetGraphicsRoot32BitConstants(2, 1, &Radius, 0);
+
+	DrawRenderItems(mCommandList.Get(), mRitemLayer[(int)RenderLayer::Opaque]);
+
+	// Indicate a state transition on the resource usage.
+	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
+		D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT));
+
+	// Done recording commands.
+	ThrowIfFailed(mCommandList->Close());
+
+	// Add the command list to the queue for execution.
+	ID3D12CommandList* cmdsLists[] = { mCommandList.Get() };
+	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
+
+	// Swap the back and front buffers
+	ThrowIfFailed(mSwapChain->Present(0, 0));
+	mCurrBackBuffer = (mCurrBackBuffer + 1) % SwapChainBufferCount;
+
+	// Advance the fence value to mark commands up to this fence point.
+	mCurrFrameResource->Fence = ++mCurrentFence;
+
+	// Add an instruction to the command queue to set a new fence point. 
+	// Because we are on the GPU timeline, the new fence point won't be 
+	// set until the GPU finishes processing all the commands prior to this Signal().
+	mCommandQueue->Signal(mFence.Get(), mCurrentFence);
+
 
 }
 
 void LandAndWavesApp::OnMouseDown(WPARAM btnState, int x, int y)
 {
-
-}
-
-void LandAndWavesApp::OnMouseUp(WPARAM btnState, int x, int y)
-{
-
+	mLastMousePos.x = x;
+	mLastMousePos.y = y;
+	SetCapture(mhMainWnd);
 }
 
 void LandAndWavesApp::OnMouseMove(WPARAM btnState, int x, int y)
 {
+	if ((btnState & MK_LBUTTON) != 0)
+	{
+		// Make each pixel correspond to a quarter of a degree.
+		float dx = XMConvertToRadians(0.25f * static_cast<float>(x - mLastMousePos.x));
+		float dy = XMConvertToRadians(0.25f * static_cast<float>(y - mLastMousePos.y));
 
+		// Update angles based on input to orbit camera around box.
+		mTheta += dx;
+		mPhi += dy;
+
+		// Restrict the angle mPhi.
+		mPhi = MathHelper::Clamp(mPhi, 0.1f, MathHelper::Pi - 0.1f);
+	}
+	else if ((btnState & MK_RBUTTON) != 0)
+	{
+		// Make each pixel correspond to 0.005 unit in the scene.
+		float dx = 0.005f * static_cast<float>(x - mLastMousePos.x);
+		float dy = 0.005f * static_cast<float>(y - mLastMousePos.y);
+
+		// Update the camera radius based on input.
+		mRadius += dx - dy;
+
+		// Restrict the radius.
+		mRadius = MathHelper::Clamp(mRadius, 3.0f, 15.0f);
+	}
+
+	mLastMousePos.x = x;
+	mLastMousePos.y = y;
+}
+
+void LandAndWavesApp::OnMouseUp(WPARAM btnState, int x, int y)
+{
+	ReleaseCapture();
 }
 
 void LandAndWavesApp::OnKeyboardInput(const GameTimer& gt)
 {
-
+	if (GetAsyncKeyState('1') & 0x8000)
+	{
+		mIsWireframe = true;
+	}
+	else
+	{
+		mIsWireframe = false;
+	}
 }
 
 void LandAndWavesApp::UpdateCamera(const GameTimer& gt)
@@ -307,7 +401,6 @@ void LandAndWavesApp::UpdateWaves(const GameTimer& gt)
 
 		mWaves->Disturb(i, j, r);
 	}
-
 	mWaves->Update(gt.DeltaTime());
 
 	// Update the wave vertex buffer with the new solution.
@@ -328,9 +421,11 @@ void LandAndWavesApp::UpdateWaves(const GameTimer& gt)
 
 void LandAndWavesApp::BuildRootSignature()
 {
-	CD3DX12_ROOT_PARAMETER slotRootParameter[2];
-	slotRootParameter[0].InitAsConstantBufferView(0);
+
+	CD3DX12_ROOT_PARAMETER slotRootParameter[3];
+	slotRootParameter[0].InitAsConstantBufferView(0);// 测试描述符视图
 	slotRootParameter[1].InitAsConstantBufferView(1);
+	slotRootParameter[2].InitAsConstants(1, 2, 2); // 測試根常量
 
 	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(_countof(slotRootParameter), slotRootParameter, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
 
@@ -353,8 +448,8 @@ void LandAndWavesApp::BuildRootSignature()
 
 void LandAndWavesApp::BuildShaderAndInputLayout()
 {
-	mShaders["LandAndWavesVS"] = d3dUtil::CompileShader(L"Shaders\\color.hlsl", nullptr, "VS", "vs_5_0");
-	mShaders["LandAndWavesPS"] = d3dUtil::CompileShader(L"Shaders\\color.hlsl", nullptr, "PS", "ps_5_0");
+	mShaders["LandAndWavesVS"] = d3dUtil::CompileShader(L"Shaders\\landandwavecolor.hlsl", nullptr, "VS", "vs_5_0");
+	mShaders["LandAndWavesPS"] = d3dUtil::CompileShader(L"Shaders\\landandwavecolor.hlsl", nullptr, "PS", "ps_5_0");
 
 	mInputLayout =
 	{
@@ -482,6 +577,70 @@ void LandAndWavesApp::BuildWavesGeometryBuffer()
 	mGeometries["waterGeo"] = std::move(geo);
 }
 
+void LandAndWavesApp::BuildSkullGeometry()
+{
+
+	std::ifstream fin("Model/skull.txt");
+
+	UINT vcount = 0;
+	UINT tcount = 0;
+	std::string ignore;
+	fin >> ignore >> vcount;
+	fin >> ignore >> tcount;
+
+
+	fin >> ignore >> ignore >> ignore >> ignore;
+	std::vector<Vertex> vertices(vcount);
+	for (UINT i = 0; i < vcount; i++)
+	{
+		fin >> vertices[i].Pos.x >> vertices[i].Pos.y >> vertices[i].Pos.z;
+		fin >> vertices[i].Color.x >> vertices[i].Color.y >> vertices[i].Color.z;
+	}
+	fin >> ignore >> ignore >> ignore;
+	std::vector<uint16_t> indices(tcount);
+	for (UINT i = 0;i<tcount;i++)
+	{
+		fin >> indices[i];
+	}
+
+
+
+	const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
+	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
+
+	auto geo = std::make_unique<MeshGeometry>();
+	geo->Name = "skullGeo";
+
+	ThrowIfFailed(D3DCreateBlob(vbByteSize, &geo->VertexBufferCPU));
+	CopyMemory(geo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
+
+	ThrowIfFailed(D3DCreateBlob(vbByteSize, &geo->VertexBufferCPU));
+	CopyMemory(geo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
+
+	ThrowIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
+	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
+
+	geo->VertexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(), mCommandList.Get(),
+		vertices.data(), vbByteSize, geo->VertexBufferUploader);
+
+	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(), mCommandList.Get(),
+		indices.data(), ibByteSize, geo->IndexBufferUploader);
+
+	geo->VertexByteStrider = sizeof(Vertex);
+	geo->VertexBufferBtyeSize = vbByteSize;
+	geo->IndexFormat = DXGI_FORMAT_R16_UINT;
+	geo->IndexBufferByteSize = ibByteSize;
+
+	SubmeshGeometry submesh;
+	submesh.IndexCount = (UINT)indices.size();
+	submesh.StartIndexLocation = 0;
+	submesh.BaseVertexLocation = 0;
+
+	geo->DrawArgs["skull"] = submesh;
+
+	mGeometries["SkullGeo"] = std::move(geo);
+}
+
 void LandAndWavesApp::BuildPSOs()
 {
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC opaquePsoDesc;
@@ -552,10 +711,21 @@ void LandAndWavesApp::BuildRenderItems()
 	gridRitem->StartIndexLocation = gridRitem->Geo->DrawArgs["grid"].StartIndexLocation;
 	gridRitem->BaseVertexLocation = gridRitem->Geo->DrawArgs["grid"].BaseVertexLocation;
 
-	mRitemLayer[(int)RenderLayer::Opaque].push_back(gridRitem.get());
+
+	auto skullRitem = std::make_unique<RenderItem>();
+	skullRitem->World = MathHelper::Identity4x4();
+	skullRitem->ObjCBIndex = 2;
+	skullRitem->Geo = mGeometries["SkullGeo"].get();
+	skullRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	skullRitem->IndexCount = skullRitem->Geo->DrawArgs["skull"].IndexCount;
+	skullRitem->StartIndexLocation = skullRitem->Geo->DrawArgs["skull"].StartIndexLocation;
+	skullRitem->BaseVertexLocation = skullRitem->Geo->DrawArgs["skull"].BaseVertexLocation;
+
+	mRitemLayer[(int)RenderLayer::Opaque].push_back(skullRitem.get());
 
 	mAllRitems.push_back(std::move(wavesRitem));
 	mAllRitems.push_back(std::move(gridRitem));
+	mAllRitems.push_back(std::move(skullRitem));
 }
 
 void LandAndWavesApp::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems)
