@@ -20,6 +20,7 @@
 #include <cassert>
 #include "d3dx12.h"
 #include <pix.h>
+#include "MathHelper.h"
 
 extern const int gNumberFrameResources;
 
@@ -123,6 +124,14 @@ public:
 	}
 };
 
+struct MaterialConstants
+{
+	DirectX::XMFLOAT4 DiffuseAlbedo = { 1.f,1.f,1.f,1.f };
+	DirectX::XMFLOAT3 FresnelRO = { 0.01f,0.01f,0.01f };
+	float Roughness = 0.25f;
+	DirectX::XMFLOAT4X4 MatTransform = MathHelper::Identity4x4();
+};
+
 struct Material
 {
 	std::string Name;
@@ -136,6 +145,15 @@ struct Material
 	DirectX::XMFLOAT3 FresnelRO = { 0.01f,0.01f,0.01f };
 	float Roughness = 0.25f;
 	DirectX::XMFLOAT4X4 MatTransform = MathHelper::Identity4x4();
+};
+
+struct Texture
+{
+	std::string Name;
+	std::wstring FileName;
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> Resource = nullptr;
+	Microsoft::WRL::ComPtr<ID3D12Resource> UploadHeap = nullptr;
 };
 
 #ifndef ThrowIfFailed
