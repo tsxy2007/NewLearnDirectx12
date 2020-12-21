@@ -21,7 +21,7 @@
 #include "d3dx12.h"
 #include <pix.h>
 
-
+extern const int gNumberFrameResources;
 
 inline std::wstring AnsiToWString(const std::string& str)
 {
@@ -121,6 +121,21 @@ public:
 		VertexBufferUploader = nullptr;
 		IndexBufferUploader = nullptr;
 	}
+};
+
+struct Material
+{
+	std::string Name;
+
+	int MatCBIndex = -1;
+	int DiffuseSrvHeapIndex = -1;
+	int NormalSrvHeapIndex = -1;
+	int NumFramesDirty = gNumberFrameResources;
+
+	DirectX::XMFLOAT4 DiffuseAlbedo = { 1.f,1.f,1.f,1.f };
+	DirectX::XMFLOAT3 FresnelRO = { 0.01f,0.01f,0.01f };
+	float Roughness = 0.25f;
+	DirectX::XMFLOAT4X4 MatTransform = MathHelper::Identity4x4();
 };
 
 #ifndef ThrowIfFailed

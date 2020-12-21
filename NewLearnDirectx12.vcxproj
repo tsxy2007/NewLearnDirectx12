@@ -162,6 +162,7 @@
     <ClCompile Include="GameTimer.cpp" />
     <ClCompile Include="GeometryGenerator.cpp" />
     <ClCompile Include="LandAndWavesApp.cpp" />
+    <ClCompile Include="LitWavesApp.cpp" />
     <ClCompile Include="MathHelper.cpp" />
     <ClCompile Include="ShapeApp.cpp" />
     <ClCompile Include="Waves.cpp" />
