@@ -17,6 +17,12 @@ namespace _NORMAL_
 	{
 		DirectX::XMFLOAT4X4 World = MathHelper::Identity4x4();
 	};
+
+	struct Vertex
+	{
+		DirectX::XMFLOAT3 Pos;
+		DirectX::XMFLOAT3 Normal;
+	};
 }
 
 struct PassConstants
