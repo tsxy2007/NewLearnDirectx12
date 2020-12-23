@@ -218,44 +218,127 @@ void LitWavesApp::Draw(const GameTimer& gt)
 
 }
 
-void LitWavesApp::OnMouseDown(WPARAM btnState, int x, int y)
+void LitWavesApp::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems)
 {
 
+}
+
+void LitWavesApp::OnMouseDown(WPARAM btnState, int x, int y)
+{
+	mLastMousePos.x = x;
+	mLastMousePos.y = y;
+	SetCapture(mhMainWnd);
 }
 
 void LitWavesApp::OnMouseMove(WPARAM btnState, int x, int y)
 {
-
+	ReleaseCapture();
 }
 
 void LitWavesApp::OnMouseUp(WPARAM btnState, int x, int y)
 {
+	if ((btnState & MK_LBUTTON) != 0)
+	{
+		float dx = XMConvertToRadians(0.25f * static_cast<float>(x - mLastMousePos.x));
+		float dy = XMConvertToRadians(0.25f * static_cast<float>(y - mLastMousePos.y));
 
+		mTheta += dx;
+		mPhi += dy;
+
+		mPhi = MathHelper::Clamp(mPhi, 0.1f, MathHelper::Pi - 0.1f);
+	}
+	else if ((btnState & MK_RBUTTON) != 0)
+	{
+		float dx = 0.2f * static_cast<float>(x - mLastMousePos.x);
+		float dy = 0.2f * static_cast<float>(y - mLastMousePos.y);
+
+		mRadius += dx - dy;
+		mRadius = MathHelper::Clamp(mRadius, 5.f, 150.f);
+	}
+	mLastMousePos.x = x;
+	mLastMousePos.y = y;
 }
 
 void LitWavesApp::OnKeyboardInput(const GameTimer& gt)
 {
+	const float dt = gt.DeltaTime();
 
+	if (GetAsyncKeyState(VK_LEFT) & 0x8000)
+	{
+		mSunTheta -= 1.f * dt;
+	}
+	if (GetAsyncKeyState(VK_RIGHT) & 0x8000)
+	{
+		mSunTheta += 1.f * dt;
+	}
+	if (GetAsyncKeyState(VK_UP) & 0x8000)
+	{
+		mSunPhi -= 1.f * dt;
+	}
+	if (GetAsyncKeyState(VK_DOWN) & 0x8000)
+	{
+		mSunPhi += 1.f * dt;
+	}
+
+	mSunPhi = MathHelper::Clamp(mSunPhi, 0.1f, XM_PIDIV2);
 }
 
 void LitWavesApp::UpdateCamera(const GameTimer& gt)
 {
+	mEyePos.x = mRadius * sinf(mPhi) * cosf(mTheta);
+	mEyePos.y = mRadius * cosf(mPhi);
+	mEyePos.z = mRadius * sinf(mPhi) * sinf(mTheta);
 
+	XMVECTOR pos = XMVectorSet(mEyePos.x, mEyePos.y, mEyePos.z, 1.f);
+	XMVECTOR target = XMVectorZero();
+	XMVECTOR up = XMVectorSet(0.f, 1.f, 0.f, 0.f);
+
+	XMMATRIX view = XMMatrixLookAtLH(pos, target, up);
+	XMStoreFloat4x4(&mView, view);
 }
 
 void LitWavesApp::UpdateObjectCBs(const GameTimer& gt)
 {
+	auto currObjectCB = mCurrFrameResource->ObjectCB.get();
 
+	for (auto& e : mAllRitems)
+	{
+		if (e->NumFramesDirty > 0)
+		{
+			XMMATRIX world = XMLoadFloat4x4(&e->World);
+			XMMATRIX texTransform = XMLoadFloat4x4(&e->TexTransform);
+			_NORMAL_::ObjectConstants objConstant;
+			XMStoreFloat4x4(&objConstant.World, XMMatrixTranspose(world));
+			currObjectCB->CopyData(e->ObjCBIndex, objConstant);
+			e->NumFramesDirty--;
+		}
+	}
 }
 
 void LitWavesApp::UpdateMaterialCBs(const GameTimer& gt)
 {
+	auto currMaterialCB = mCurrFrameResource->MaterialCB.get();
+	for (auto& e : mMaterials)
+	{
+		Material* mat = e.second.get();
+		if (mat->NumFramesDirty > 0)
+		{
+			XMMATRIX matTransform = XMLoadFloat4x4(&mat->MatTransform);
+			MaterialConstants matConstants;
+			matConstants.DiffuseAlbedo = mat->DiffuseAlbedo;
+			matConstants.FresnelRO = mat->FresnelRO;
+			matConstants.Roughness = mat->Roughness;
 
+			currMaterialCB->CopyData(mat->MatCBIndex, matConstants);
+
+			mat->NumFramesDirty--;
+		}
+	}
 }
 
 void LitWavesApp::UpdateMainPassCB(const GameTimer& gt)
 {
-
+	
 }
 
 void LitWavesApp::UpdateWaves(const GameTimer& gt)
@@ -481,11 +564,6 @@ void LitWavesApp::BuildRenderItems()
 
 	mAllRitems.push_back(std::move(wavesRitem));
 	mAllRitems.push_back(std::move(gridRitem));
-}
-
-void LitWavesApp::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems)
-{
-
 }
 
 float LitWavesApp::GetHillsHeight(float x, float z) const
