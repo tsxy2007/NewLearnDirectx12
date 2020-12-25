@@ -41,6 +41,10 @@ struct PassConstants
 	float FarZ = 0.f;
 	float TotalTime = 0.f;
 	float DeltaTime = 0.f;
+
+	DirectX::XMFLOAT4 AmbientLight = { 0.f,0.f,0.f,1.f };
+
+	Light Lights[MaxLights];
 };
 
 struct Vertex
@@ -65,7 +69,11 @@ public:
 	std::unique_ptr<UploadBuffer<_NORMAL_::ObjectConstants>> ObjectCB = nullptr;
 	std::unique_ptr<UploadBuffer<PassConstants>> PassCB = nullptr;
 	std::unique_ptr<UploadBuffer<MaterialConstants>> MaterialCB = nullptr;
+#if 0
 	std::unique_ptr<UploadBuffer<Vertex>> WaveVB = nullptr;
+#else
+	std::unique_ptr<UploadBuffer<_NORMAL_::Vertex>> WaveVB = nullptr;
+#endif
 
 	UINT64 Fence = 0;
 };

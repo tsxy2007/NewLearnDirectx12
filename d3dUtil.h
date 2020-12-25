@@ -124,6 +124,18 @@ public:
 	}
 };
 
+struct Light
+{
+	DirectX::XMFLOAT3 Strength = { 0.5f,0.5f,0.5f };
+	float FalloffStart = 1.f; // point / spot light only
+	DirectX::XMFLOAT3 Direction = { 0.f,-1.f,0.f }; // directional / spot light only
+	float FalloffEnd = 10.f; /// point / spot light only
+	DirectX::XMFLOAT3 Position = { 0.f,0.f,0.f };// point / spot light only 
+	float SpotPower = 64.f; // spot light only 
+};
+
+#define MaxLights 16
+
 struct MaterialConstants
 {
 	DirectX::XMFLOAT4 DiffuseAlbedo = { 1.f,1.f,1.f,1.f };

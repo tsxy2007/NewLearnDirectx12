@@ -40,5 +40,15 @@ public:
 		return x < low ? low : (x > high ? high : x);
 	}
 
+	static DirectX::XMVECTOR SphericalToCartesian(float radius, float theta, float phi)
+	{
+		return DirectX::XMVectorSet(
+			radius * sinf(phi) * cosf(theta),
+			radius * sinf(phi),
+			radius * sinf(phi) * sinf(theta),
+			1.f
+		);
+	}
+
 	static const float Pi;
 };

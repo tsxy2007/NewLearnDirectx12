@@ -411,8 +411,8 @@ void LandAndWavesApp::UpdateWaves(const GameTimer& gt)
 
 		v.Pos = mWaves->Position(i);
 		v.Color = XMFLOAT4(DirectX::Colors::Blue);
-
-		currWavesVB->CopyData(i, v);
+		// TODO: 以后修改为
+		//currWavesVB->CopyData(i, v);
 	}
 
 	// Set the dynamic VB of the wave renderitem to the current frame VB.

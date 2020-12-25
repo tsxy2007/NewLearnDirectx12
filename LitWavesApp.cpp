@@ -338,12 +338,62 @@ void LitWavesApp::UpdateMaterialCBs(const GameTimer& gt)
 
 void LitWavesApp::UpdateMainPassCB(const GameTimer& gt)
 {
-	
+	XMMATRIX view = XMLoadFloat4x4(&mView);
+	XMMATRIX proj = XMLoadFloat4x4(&mProj);
+
+	XMMATRIX viewProj = XMMatrixMultiply(view, proj);
+	XMMATRIX invView = XMMatrixInverse(&XMMatrixDeterminant(view), view);
+	XMMATRIX invProj = XMMatrixInverse(&XMMatrixDeterminant(proj), proj);
+	XMMATRIX invViewProj = XMMatrixInverse(&XMMatrixDeterminant(viewProj), viewProj);
+
+	XMStoreFloat4x4(&mMainPassCB.View, XMMatrixTranspose(view));
+	XMStoreFloat4x4(&mMainPassCB.Proj, XMMatrixTranspose(proj));
+	XMStoreFloat4x4(&mMainPassCB.ViewProj, XMMatrixTranspose(viewProj));
+	XMStoreFloat4x4(&mMainPassCB.InvView, XMMatrixTranspose(invView));
+	XMStoreFloat4x4(&mMainPassCB.InvProj, XMMatrixTranspose(invProj));
+	XMStoreFloat4x4(&mMainPassCB.InvViewProj, XMMatrixTranspose(invViewProj));
+
+	mMainPassCB.EyePosW = mEyePos;
+	mMainPassCB.RenderTargetSize = XMFLOAT2((float)mClientWidth, (float)mClientHeight);
+	mMainPassCB.InvRenderTargetSize = XMFLOAT2(1.f / mClientWidth, 1.f / mClientHeight);
+
+	mMainPassCB.NearZ = 1.f;
+	mMainPassCB.FarZ = 1000.f;
+
+	mMainPassCB.TotalTime = gt.TotalTime();
+	mMainPassCB.DeltaTime = gt.DeltaTime();
+	mMainPassCB.AmbientLight = { 0.25f,0.25f,0.35f,1.f };
+
+	XMVECTOR lightDir = -MathHelper::SphericalToCartesian(mRadius, mTheta, mPhi);
+
+	auto currPassCB = mCurrFrameResource->PassCB.get();
+	currPassCB->CopyData(0, mMainPassCB);
 }
 
 void LitWavesApp::UpdateWaves(const GameTimer& gt)
 {
+	static float t_base = 0.f;
+	if ((mTimer.TotalTime() - t_base) >= 0.25f)
+	{
+		t_base += 0.25f;
+		int i = MathHelper::Rand(4, mWaves->RowCount() - 5);
+		int j = MathHelper::Rand(4, mWaves->ColumnCount() - 5);
 
+		float r = MathHelper::RandF(0.2f, 0.5f);
+
+		mWaves->Disturb(i, j, r);
+	}
+
+	mWaves->Update(gt.DeltaTime());
+
+	auto currWavesVB = mCurrFrameResource->WaveVB.get();
+	for (int i = 0; i < mWaves->VertexCount(); i++)
+	{
+		_NORMAL_::Vertex v;
+		v.Pos = mWaves->Position(i);
+		v.Normal = mWaves->Normal(i);
+		currWavesVB->CopyData(i, v);
+	}
 }
 
 void LitWavesApp::BuildRootSignature()
