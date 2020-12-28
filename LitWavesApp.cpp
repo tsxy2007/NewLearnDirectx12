@@ -108,6 +108,7 @@ private:
 	float mTheta = 1.5f * XM_PI;
 	float mPhi = XM_PIDIV2 - 0.1f;
 	float mRadius = 50.f;
+
 	float mSunTheta = 1.25f * XM_PI;
 	float mSunPhi = XM_PIDIV4;
 
@@ -229,7 +230,9 @@ void LitWavesApp::Draw(const GameTimer& gt)
 		D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
 	mCommandList->ClearRenderTargetView(CurrentBackBufferView(), Colors::LightSteelBlue, 0, nullptr);
-	mCommandList->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0, 0, nullptr);
+	mCommandList->ClearDepthStencilView(DepthStencilView(), D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.0f, 0, 0, nullptr);
+
+	mCommandList->OMSetRenderTargets(1, &CurrentBackBufferView(), true, &DepthStencilView());
 
 	mCommandList->SetGraphicsRootSignature(mRootSignture.Get());
 
@@ -423,6 +426,9 @@ void LitWavesApp::UpdateMainPassCB(const GameTimer& gt)
 	mMainPassCB.AmbientLight = { 0.25f,0.25f,0.35f,1.f };
 
 	XMVECTOR lightDir = -MathHelper::SphericalToCartesian(mRadius, mTheta, mPhi);
+
+	XMStoreFloat3(&mMainPassCB.Lights[0].Direction, lightDir);
+	mMainPassCB.Lights[0].Strength = { 1.f,1.f,0.9f };
 
 	auto currPassCB = mCurrFrameResource->PassCB.get();
 	currPassCB->CopyData(0, mMainPassCB);
@@ -671,20 +677,20 @@ void LitWavesApp::BuildRenderItems()
 
 	mRitemLayer[(int)RenderLayer::Opaque].push_back(wavesRitem.get());
 
-	//auto gridRitem = std::make_unique<RenderItem>();
-	//gridRitem->World = MathHelper::Identity4x4();
-	//gridRitem->ObjCBIndex = 1;
-	//gridRitem->Mat = mMaterials["grass"].get();
-	//gridRitem->Geo = mGeometries["landGeo"].get();
-	//gridRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	//gridRitem->IndexCount = gridRitem->Geo->DrawArgs["grid"].IndexCount;
-	//gridRitem->StartIndexLocation = gridRitem->Geo->DrawArgs["grid"].StartIndexLocation;
-	//gridRitem->BaseVertexLocation = gridRitem->Geo->DrawArgs["grid"].BaseVertexLocation;
+	auto gridRitem = std::make_unique<RenderItem>();
+	gridRitem->World = MathHelper::Identity4x4();
+	gridRitem->ObjCBIndex = 1;
+	gridRitem->Mat = mMaterials["grass"].get();
+	gridRitem->Geo = mGeometries["landGeo"].get();
+	gridRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	gridRitem->IndexCount = gridRitem->Geo->DrawArgs["grid"].IndexCount;
+	gridRitem->StartIndexLocation = gridRitem->Geo->DrawArgs["grid"].StartIndexLocation;
+	gridRitem->BaseVertexLocation = gridRitem->Geo->DrawArgs["grid"].BaseVertexLocation;
 
-	//mRitemLayer[(int)RenderLayer::Opaque].push_back(gridRitem.get());
+	mRitemLayer[(int)RenderLayer::Opaque].push_back(gridRitem.get());
 
 	mAllRitems.push_back(std::move(wavesRitem));
-	//mAllRitems.push_back(std::move(gridRitem));
+	mAllRitems.push_back(std::move(gridRitem));
 }
 
 float LitWavesApp::GetHillsHeight(float x, float z) const
