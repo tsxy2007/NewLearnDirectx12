@@ -21,44 +21,47 @@ const int gNumFrameResources = 3;
 
 // Lightweight structure stores parameters to draw a shape.  This will
 // vary from app-to-app.
-struct RenderItem
+namespace LITWAVESAPP
 {
-	RenderItem() = default;
 
-	// World matrix of the shape that describes the object's local space
-	// relative to the world space, which defines the position, orientation,
-	// and scale of the object in the world.
-	XMFLOAT4X4 World = MathHelper::Identity4x4();
+	struct RenderItem
+	{
+		RenderItem() = default;
 
-	XMFLOAT4X4 TexTransform = MathHelper::Identity4x4();
+		// World matrix of the shape that describes the object's local space
+		// relative to the world space, which defines the position, orientation,
+		// and scale of the object in the world.
+		XMFLOAT4X4 World = MathHelper::Identity4x4();
 
-	// Dirty flag indicating the object data has changed and we need to update the constant buffer.
-	// Because we have an object cbuffer for each FrameResource, we have to apply the
-	// update to each FrameResource.  Thus, when we modify obect data we should set 
-	// NumFramesDirty = gNumFrameResources so that each frame resource gets the update.
-	int NumFramesDirty = gNumFrameResources;
+		XMFLOAT4X4 TexTransform = MathHelper::Identity4x4();
 
-	// Index into GPU constant buffer corresponding to the ObjectCB for this render item.
-	UINT ObjCBIndex = -1;
+		// Dirty flag indicating the object data has changed and we need to update the constant buffer.
+		// Because we have an object cbuffer for each FrameResource, we have to apply the
+		// update to each FrameResource.  Thus, when we modify obect data we should set 
+		// NumFramesDirty = gNumFrameResources so that each frame resource gets the update.
+		int NumFramesDirty = gNumFrameResources;
 
-	Material* Mat = nullptr;
-	MeshGeometry* Geo = nullptr;
+		// Index into GPU constant buffer corresponding to the ObjectCB for this render item.
+		UINT ObjCBIndex = -1;
 
-	// Primitive topology.
-	D3D12_PRIMITIVE_TOPOLOGY PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+		Material* Mat = nullptr;
+		MeshGeometry* Geo = nullptr;
 
-	// DrawIndexedInstanced parameters.
-	UINT IndexCount = 0;
-	UINT StartIndexLocation = 0;
-	int BaseVertexLocation = 0;
-};
+		// Primitive topology.
+		D3D12_PRIMITIVE_TOPOLOGY PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 
+		// DrawIndexedInstanced parameters.
+		UINT IndexCount = 0;
+		UINT StartIndexLocation = 0;
+		int BaseVertexLocation = 0;
+	};
+}
 enum class RenderLayer : int
 {
 	Opaque = 0,
 	Count
 };
-
+using namespace LITWAVESAPP;
 class LitWavesApp : public D3DApp
 {
 public:
@@ -549,12 +552,6 @@ void LitWavesApp::BuildLandGeometry()
 	GeometryGenerator geoGen;
 	GeometryGenerator::MeshData grid = geoGen.CreateGrid(160.0f, 160.0f, 50, 50);
 
-	//
-	// Extract the vertex elements we are interested and apply the height function to
-	// each vertex.  In addition, color the vertices based on their height so we have
-	// sandy looking beaches, grassy low hills, and snow mountain peaks.
-	//
-
 	std::vector<_NORMAL_::Vertex> vertices(grid.Vertices.size());
 	for (size_t i = 0; i < grid.Vertices.size(); ++i)
 	{
@@ -564,7 +561,7 @@ void LitWavesApp::BuildLandGeometry()
 		vertices[i].Normal = GetHillsNormal(p.x, p.z);
 	}
 
-	const UINT vbByteSize = (UINT)vertices.size() * sizeof(Vertex);
+	const UINT vbByteSize = (UINT)vertices.size() * sizeof(_NORMAL_::Vertex);
 
 	std::vector<std::uint16_t> indices = grid.GetIndices16();
 	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
@@ -584,7 +581,7 @@ void LitWavesApp::BuildLandGeometry()
 	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
 		mCommandList.Get(), indices.data(), ibByteSize, geo->IndexBufferUploader);
 
-	geo->VertexByteStrider = sizeof(Vertex);
+	geo->VertexByteStrider = sizeof(_NORMAL_::Vertex);
 	geo->VertexBufferBtyeSize = vbByteSize;
 	geo->IndexFormat = DXGI_FORMAT_R16_UINT;
 	geo->IndexBufferByteSize = ibByteSize;
@@ -624,7 +621,7 @@ void LitWavesApp::BuildWavesGeometryBuffers()
 		}
 	}
 
-	UINT vbByteSize = mWaves->VertexCount() * sizeof(Vertex);
+	UINT vbByteSize = mWaves->VertexCount() * sizeof(_NORMAL_::Vertex);
 	UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
 
 	auto geo = std::make_unique<MeshGeometry>();
@@ -640,7 +637,7 @@ void LitWavesApp::BuildWavesGeometryBuffers()
 	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
 		mCommandList.Get(), indices.data(), ibByteSize, geo->IndexBufferUploader);
 
-	geo->VertexByteStrider = sizeof(Vertex);
+	geo->VertexByteStrider = sizeof(_NORMAL_::Vertex);
 	geo->VertexBufferBtyeSize = vbByteSize;
 	geo->IndexFormat = DXGI_FORMAT_R16_UINT;
 	geo->IndexBufferByteSize = ibByteSize;

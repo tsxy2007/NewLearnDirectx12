@@ -39,9 +39,6 @@
     <ClInclude Include="GeometryGenerator.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="LandAndWavesApp.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="Waves.h">
       <Filter>Header Files</Filter>
     </ClInclude>
