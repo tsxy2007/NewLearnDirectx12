@@ -5,7 +5,7 @@
 #endif
 
 #ifndef NUM_POINT_LIGHTS
-#define NUM_POINT_LIGHTS 0
+#define NUM_POINT_LIGHTS 1
 #endif
 
 #ifndef NUM_SPOT_LIGHTS
@@ -24,10 +24,10 @@ cbuffer cbPerObject : register(b0)
 
 cbuffer cbMaterial : register(b1)
 {
-    float4 gDiffuseAlbedo;
-    float3 gFresnelR0;
-    float  gRoughness;
-    float4x4 gMatTransform;
+    float4 gDiffuseAlbedo; // Âþ·´Éä
+    float3 gFresnelR0;// ·ÆÄá –‚S”µ
+    float  gRoughness;// ´Ö²Ú¶È
+    float4x4 gMatTransform;// 
 };
 
 // Constant data that varies per material.
