@@ -1,5 +1,5 @@
 //***************************************************************************************
-// LitWavesApp.cpp by Frank Luna (C) 2015 All Rights Reserved.
+// LitColumnsApp.cpp by Frank Luna (C) 2015 All Rights Reserved.
 //
 // Use arrow keys to move light positions.
 //
@@ -21,7 +21,7 @@ const int gNumFrameResources = 3;
 
 // Lightweight structure stores parameters to draw a shape.  This will
 // vary from app-to-app.
-namespace LITWAVESAPP
+namespace LITCOLUMNSAPP
 {
 
 	struct RenderItem
@@ -61,14 +61,14 @@ enum class RenderLayer : int
 	Opaque = 0,
 	Count
 };
-using namespace LITWAVESAPP;
-class LitWavesApp : public D3DApp
+using namespace LITCOLUMNSAPP;
+class LitColumnsApp : public D3DApp
 {
 public:
-	LitWavesApp(HINSTANCE hInstance);
-	LitWavesApp(const LitWavesApp& rhs) = delete;
-	LitWavesApp& operator=(const LitWavesApp& rhs) = delete;
-	~LitWavesApp();
+	LitColumnsApp(HINSTANCE hInstance);
+	LitColumnsApp(const LitColumnsApp& rhs) = delete;
+	LitColumnsApp& operator=(const LitColumnsApp& rhs) = delete;
+	~LitColumnsApp();
 
 	virtual bool Initialize()override;
 
@@ -90,9 +90,8 @@ private:
 
 	void BuildRootSignature();
 	void BuildShadersAndInputLayout();
-
-	void BuildShapeGeometry();
-	void BuildSkullGeometry();
+	void BuildLandGeometry();
+	void BuildWavesGeometryBuffers();
 	void BuildPSOs();
 	void BuildFrameResources();
 	void BuildMaterials();
@@ -146,41 +145,41 @@ private:
 	POINT mLastMousePos;
 };
 
-int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance,
-	PSTR cmdLine, int showCmd)
-{
-	// Enable run-time memory check for debug builds.
-#if defined(DEBUG) | defined(_DEBUG)
-	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
-#endif
+//int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE prevInstance,
+//	PSTR cmdLine, int showCmd)
+//{
+//	// Enable run-time memory check for debug builds.
+//#if defined(DEBUG) | defined(_DEBUG)
+//	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+//#endif
+//
+//	try
+//	{
+//		LitColumnsApp theApp(hInstance);
+//		if (!theApp.Initialize())
+//			return 0;
+//
+//		return theApp.Run();
+//	}
+//	catch (DxException& e)
+//	{
+//		MessageBox(nullptr, e.ToString().c_str(), L"HR Failed", MB_OK);
+//		return 0;
+//	}
+//}
 
-	try
-	{
-		LitWavesApp theApp(hInstance);
-		if (!theApp.Initialize())
-			return 0;
-
-		return theApp.Run();
-	}
-	catch (DxException& e)
-	{
-		MessageBox(nullptr, e.ToString().c_str(), L"HR Failed", MB_OK);
-		return 0;
-	}
-}
-
-LitWavesApp::LitWavesApp(HINSTANCE hInstance)
+LitColumnsApp::LitColumnsApp(HINSTANCE hInstance)
 	: D3DApp(hInstance)
 {
 }
 
-LitWavesApp::~LitWavesApp()
+LitColumnsApp::~LitColumnsApp()
 {
 	if (md3dDevice != nullptr)
 		FlushCommandQueue();
 }
 
-bool LitWavesApp::Initialize()
+bool LitColumnsApp::Initialize()
 {
 	if (!D3DApp::Initialize())
 		return false;
@@ -196,8 +195,8 @@ bool LitWavesApp::Initialize()
 
 	BuildRootSignature();
 	BuildShadersAndInputLayout();
-	BuildShapeGeometry();
-	BuildSkullGeometry();
+	BuildLandGeometry();
+	BuildWavesGeometryBuffers();
 	BuildMaterials();
 	BuildRenderItems();
 	//BuildRenderItems();
@@ -215,7 +214,7 @@ bool LitWavesApp::Initialize()
 	return true;
 }
 
-void LitWavesApp::OnResize()
+void LitColumnsApp::OnResize()
 {
 	D3DApp::OnResize();
 
@@ -224,7 +223,7 @@ void LitWavesApp::OnResize()
 	XMStoreFloat4x4(&mProj, P);
 }
 
-void LitWavesApp::Update(const GameTimer& gt)
+void LitColumnsApp::Update(const GameTimer& gt)
 {
 	OnKeyboardInput(gt);
 	UpdateCamera(gt);
@@ -246,9 +245,10 @@ void LitWavesApp::Update(const GameTimer& gt)
 	UpdateObjectCBs(gt);
 	UpdateMaterialCBs(gt);
 	UpdateMainPassCB(gt);
+	UpdateWaves(gt);
 }
 
-void LitWavesApp::Draw(const GameTimer& gt)
+void LitColumnsApp::Draw(const GameTimer& gt)
 {
 	auto cmdListAlloc = mCurrFrameResource->CmdListAlloc;
 
@@ -305,7 +305,7 @@ void LitWavesApp::Draw(const GameTimer& gt)
 	mCommandQueue->Signal(mFence.Get(), mCurrentFence);
 }
 
-void LitWavesApp::OnMouseDown(WPARAM btnState, int x, int y)
+void LitColumnsApp::OnMouseDown(WPARAM btnState, int x, int y)
 {
 	mLastMousePos.x = x;
 	mLastMousePos.y = y;
@@ -313,12 +313,12 @@ void LitWavesApp::OnMouseDown(WPARAM btnState, int x, int y)
 	SetCapture(mhMainWnd);
 }
 
-void LitWavesApp::OnMouseUp(WPARAM btnState, int x, int y)
+void LitColumnsApp::OnMouseUp(WPARAM btnState, int x, int y)
 {
 	ReleaseCapture();
 }
 
-void LitWavesApp::OnMouseMove(WPARAM btnState, int x, int y)
+void LitColumnsApp::OnMouseMove(WPARAM btnState, int x, int y)
 {
 	if ((btnState & MK_LBUTTON) != 0)
 	{
@@ -350,7 +350,7 @@ void LitWavesApp::OnMouseMove(WPARAM btnState, int x, int y)
 	mLastMousePos.y = y;
 }
 
-void LitWavesApp::OnKeyboardInput(const GameTimer& gt)
+void LitColumnsApp::OnKeyboardInput(const GameTimer& gt)
 {
 	const float dt = gt.DeltaTime();
 
@@ -369,7 +369,7 @@ void LitWavesApp::OnKeyboardInput(const GameTimer& gt)
 	mSunPhi = MathHelper::Clamp(mSunPhi, 0.1f, XM_PIDIV2);
 }
 
-void LitWavesApp::UpdateCamera(const GameTimer& gt)
+void LitColumnsApp::UpdateCamera(const GameTimer& gt)
 {
 	// Convert Spherical to Cartesian coordinates.
 	mEyePos.x = mRadius * sinf(mPhi) * cosf(mTheta);
@@ -385,7 +385,7 @@ void LitWavesApp::UpdateCamera(const GameTimer& gt)
 	XMStoreFloat4x4(&mView, view);
 }
 
-void LitWavesApp::UpdateObjectCBs(const GameTimer& gt)
+void LitColumnsApp::UpdateObjectCBs(const GameTimer& gt)
 {
 	auto currObjectCB = mCurrFrameResource->ObjectCB.get();
 	for (auto& e : mAllRitems)
@@ -408,7 +408,7 @@ void LitWavesApp::UpdateObjectCBs(const GameTimer& gt)
 	}
 }
 
-void LitWavesApp::UpdateMaterialCBs(const GameTimer& gt)
+void LitColumnsApp::UpdateMaterialCBs(const GameTimer& gt)
 {
 	auto currMaterialCB = mCurrFrameResource->MaterialCB.get();
 	for (auto& e : mMaterials)
@@ -433,7 +433,7 @@ void LitWavesApp::UpdateMaterialCBs(const GameTimer& gt)
 	}
 }
 
-void LitWavesApp::UpdateMainPassCB(const GameTimer& gt)
+void LitColumnsApp::UpdateMainPassCB(const GameTimer& gt)
 {
 	XMMATRIX view = XMLoadFloat4x4(&mView);
 	XMMATRIX proj = XMLoadFloat4x4(&mProj);
@@ -467,7 +467,7 @@ void LitWavesApp::UpdateMainPassCB(const GameTimer& gt)
 	currPassCB->CopyData(0, mMainPassCB);
 }
 
-void LitWavesApp::UpdateWaves(const GameTimer& gt)
+void LitColumnsApp::UpdateWaves(const GameTimer& gt)
 {
 	// Every quarter second, generate a random wave.
 	static float t_base = 0.0f;
@@ -502,7 +502,7 @@ void LitWavesApp::UpdateWaves(const GameTimer& gt)
 	mWavesRitem->Geo->VertexBufferGPU = currWavesVB->Resource();
 }
 
-void LitWavesApp::BuildRootSignature()
+void LitColumnsApp::BuildRootSignature()
 {
 	// Root parameter can be a table, root descriptor or root constants.
 	CD3DX12_ROOT_PARAMETER slotRootParameter[3];
@@ -535,7 +535,7 @@ void LitWavesApp::BuildRootSignature()
 		IID_PPV_ARGS(mRootSignature.GetAddressOf())));
 }
 
-void LitWavesApp::BuildShadersAndInputLayout()
+void LitColumnsApp::BuildShadersAndInputLayout()
 {
 	mShaders["standardVS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", nullptr, "VS", "vs_5_0");
 	mShaders["opaquePS"] = d3dUtil::CompileShader(L"Shaders\\Default.hlsl", nullptr, "PS", "ps_5_0");
@@ -547,102 +547,27 @@ void LitWavesApp::BuildShadersAndInputLayout()
 	};
 }
 
-void LitWavesApp::BuildShapeGeometry()
+void LitColumnsApp::BuildLandGeometry()
 {
 	GeometryGenerator geoGen;
-	GeometryGenerator::MeshData box = geoGen.CreateBox(1.5f, 0.5f, 1.5f, 3);
-	GeometryGenerator::MeshData sphere = geoGen.CreateGeosphere(0.5f, 3);// geoGen.CreateSphere(0.5f, 15, 15);
-	GeometryGenerator::MeshData cylinder = geoGen.CreateCylinder(0.5f, 0.3f, 2.5f, 20, 20, 2);
-	GeometryGenerator::MeshData grid = geoGen.CreateGrid(1.5f, 1.5f, 2, 3);
-	GeometryGenerator::MeshData quad = geoGen.CreateQuad(1.f, 1.f, 1.f, 1.f, 1.f);
+	GeometryGenerator::MeshData grid = geoGen.CreateGrid(160.0f, 160.0f, 50, 50);
 
-	UINT boxVertexOffset = 0;
-	UINT sphereVertexOffset = boxVertexOffset + (UINT)box.Vertices.size();
-	UINT cylinderVertexOffset = sphereVertexOffset + (UINT)sphere.Vertices.size();
-	UINT gridVertexOffset = cylinderVertexOffset + (UINT)cylinder.Vertices.size();
-	UINT quadVertexOffset = gridVertexOffset + (UINT)grid.Vertices.size();
-
-	UINT boxIndexOffset = 0;
-	UINT sphereIndexOffset = boxIndexOffset + (UINT)box.Indices32.size();
-	UINT cylinderIndexOffset = sphereIndexOffset + (UINT)sphere.Indices32.size();
-	UINT gridIndexOffset = cylinderIndexOffset + (UINT)cylinder.Indices32.size();
-	UINT quadIndexOffset = gridIndexOffset + (UINT)grid.Indices32.size();
-
-	SubmeshGeometry boxSubmesh;
-	boxSubmesh.IndexCount = (UINT)box.Indices32.size();
-	boxSubmesh.StartIndexLocation = boxIndexOffset;
-	boxSubmesh.BaseVertexLocation = boxVertexOffset;
-
-	SubmeshGeometry sphereSubmesh;
-	sphereSubmesh.IndexCount = (UINT)sphere.Indices32.size();
-	sphereSubmesh.StartIndexLocation = sphereIndexOffset;
-	sphereSubmesh.BaseVertexLocation = sphereVertexOffset;
-
-	SubmeshGeometry cylinderSubmesh;
-	cylinderSubmesh.IndexCount = (UINT)cylinder.Indices32.size();
-	cylinderSubmesh.StartIndexLocation = cylinderIndexOffset;
-	cylinderSubmesh.BaseVertexLocation = cylinderVertexOffset;
-
-	SubmeshGeometry gridSubmesh;
-	gridSubmesh.IndexCount = (UINT)grid.Indices32.size();
-	gridSubmesh.StartIndexLocation = gridIndexOffset;
-	gridSubmesh.BaseVertexLocation = gridVertexOffset;
-
-	SubmeshGeometry quadSubmesh;
-	quadSubmesh.IndexCount = (UINT)quad.Indices32.size();
-	quadSubmesh.StartIndexLocation = quadIndexOffset;
-	quadSubmesh.BaseVertexLocation = quadVertexOffset;
-
-
-	auto totalVertexCount = box.Vertices.size()
-		+ sphere.Vertices.size()
-		+ cylinder.Vertices.size()
-		+ grid.Vertices.size()
-		+ quad.Vertices.size();
-
-	std::vector<_NORMAL_::Vertex> vertices(totalVertexCount);
-
-	UINT k = 0;
-	for (size_t i = 0; i < box.Vertices.size(); i++, k++)
+	std::vector<_NORMAL_::Vertex> vertices(grid.Vertices.size());
+	for (size_t i = 0; i < grid.Vertices.size(); ++i)
 	{
-		vertices[k].Pos = box.Vertices[i].Position;
-		vertices[k].Normal = box.Vertices[i].Normal;
+		auto& p = grid.Vertices[i].Position;
+		vertices[i].Pos = p;
+		vertices[i].Pos.y = GetHillsHeight(p.x, p.z);
+		vertices[i].Normal = GetHillsNormal(p.x, p.z);
 	}
-	for (size_t i = 0; i < sphere.Vertices.size(); i++, k++)
-	{
-		vertices[k].Pos = sphere.Vertices[i].Position;
-		vertices[k].Normal = sphere.Vertices[i].Normal;
-	}
-	for (size_t i = 0; i < cylinder.Vertices.size(); i++, k++)
-	{
-		vertices[k].Pos = cylinder.Vertices[i].Position;
-		vertices[k].Normal = cylinder.Vertices[i].Normal;
-	}
-
-	for (size_t i = 0; i < grid.Vertices.size(); i++, k++)
-	{
-		vertices[k].Pos = grid.Vertices[i].Position;
-		vertices[k].Normal = grid.Vertices[i].Normal;
-	}
-
-	for (size_t i = 0; i < quad.Vertices.size(); i++, k++)
-	{
-		vertices[k].Pos = quad.Vertices[i].Position;
-		vertices[k].Normal = quad.Vertices[i].Normal;
-	}
-
-	std::vector<std::uint16_t> indices;
-	indices.insert(indices.end(), std::begin(box.GetIndices16()), std::end(box.GetIndices16()));
-	indices.insert(indices.end(), std::begin(sphere.GetIndices16()), std::end(sphere.GetIndices16()));
-	indices.insert(indices.end(), std::begin(cylinder.GetIndices16()), std::end(cylinder.GetIndices16()));
-	indices.insert(indices.end(), std::begin(grid.GetIndices16()), std::end(grid.GetIndices16()));
-	indices.insert(indices.end(), std::begin(quad.GetIndices16()), std::end(quad.GetIndices16()));
 
 	const UINT vbByteSize = (UINT)vertices.size() * sizeof(_NORMAL_::Vertex);
+
+	std::vector<std::uint16_t> indices = grid.GetIndices16();
 	const UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
 
 	auto geo = std::make_unique<MeshGeometry>();
-	geo->Name = "shapeGeo";
+	geo->Name = "landGeo";
 
 	ThrowIfFailed(D3DCreateBlob(vbByteSize, &geo->VertexBufferCPU));
 	CopyMemory(geo->VertexBufferCPU->GetBufferPointer(), vertices.data(), vbByteSize);
@@ -661,21 +586,73 @@ void LitWavesApp::BuildShapeGeometry()
 	geo->IndexFormat = DXGI_FORMAT_R16_UINT;
 	geo->IndexBufferByteSize = ibByteSize;
 
-	geo->DrawArgs["box"] = boxSubmesh;
-	geo->DrawArgs["sphere"] = sphereSubmesh;
-	geo->DrawArgs["cylinder"] = cylinderSubmesh;
-	geo->DrawArgs["grid"] = gridSubmesh;
-	geo->DrawArgs["quad"] = quadSubmesh;
+	SubmeshGeometry submesh;
+	submesh.IndexCount = (UINT)indices.size();
+	submesh.StartIndexLocation = 0;
+	submesh.BaseVertexLocation = 0;
 
-	mGeometries[geo->Name] = std::move(geo);
+	geo->DrawArgs["grid"] = submesh;
+
+	mGeometries["landGeo"] = std::move(geo);
 }
 
-void LitWavesApp::BuildSkullGeometry()
+void LitColumnsApp::BuildWavesGeometryBuffers()
 {
+	std::vector<std::uint16_t> indices(3 * mWaves->TriangleCount()); // 3 indices per face
+	assert(mWaves->VertexCount() < 0x0000ffff);
 
+	// Iterate over each quad.
+	int m = mWaves->RowCount();
+	int n = mWaves->ColumnCount();
+	int k = 0;
+	for (int i = 0; i < m - 1; ++i)
+	{
+		for (int j = 0; j < n - 1; ++j)
+		{
+			indices[k] = i * n + j;
+			indices[k + 1] = i * n + j + 1;
+			indices[k + 2] = (i + 1) * n + j;
+
+			indices[k + 3] = (i + 1) * n + j;
+			indices[k + 4] = i * n + j + 1;
+			indices[k + 5] = (i + 1) * n + j + 1;
+
+			k += 6; // next quad
+		}
+	}
+
+	UINT vbByteSize = mWaves->VertexCount() * sizeof(_NORMAL_::Vertex);
+	UINT ibByteSize = (UINT)indices.size() * sizeof(std::uint16_t);
+
+	auto geo = std::make_unique<MeshGeometry>();
+	geo->Name = "waterGeo";
+
+	// Set dynamically.
+	geo->VertexBufferCPU = nullptr;
+	geo->VertexBufferGPU = nullptr;
+
+	ThrowIfFailed(D3DCreateBlob(ibByteSize, &geo->IndexBufferCPU));
+	CopyMemory(geo->IndexBufferCPU->GetBufferPointer(), indices.data(), ibByteSize);
+
+	geo->IndexBufferGPU = d3dUtil::CreateDefaultBuffer(md3dDevice.Get(),
+		mCommandList.Get(), indices.data(), ibByteSize, geo->IndexBufferUploader);
+
+	geo->VertexByteStrider = sizeof(_NORMAL_::Vertex);
+	geo->VertexBufferBtyeSize = vbByteSize;
+	geo->IndexFormat = DXGI_FORMAT_R16_UINT;
+	geo->IndexBufferByteSize = ibByteSize;
+
+	SubmeshGeometry submesh;
+	submesh.IndexCount = (UINT)indices.size();
+	submesh.StartIndexLocation = 0;
+	submesh.BaseVertexLocation = 0;
+
+	geo->DrawArgs["grid"] = submesh;
+
+	mGeometries["waterGeo"] = std::move(geo);
 }
 
-void LitWavesApp::BuildPSOs()
+void LitColumnsApp::BuildPSOs()
 {
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC opaquePsoDesc;
 
@@ -708,7 +685,7 @@ void LitWavesApp::BuildPSOs()
 	ThrowIfFailed(md3dDevice->CreateGraphicsPipelineState(&opaquePsoDesc, IID_PPV_ARGS(&mPSOs["opaque"])));
 }
 
-void LitWavesApp::BuildFrameResources()
+void LitColumnsApp::BuildFrameResources()
 {
 	for (int i = 0; i < gNumFrameResources; ++i)
 	{
@@ -717,151 +694,61 @@ void LitWavesApp::BuildFrameResources()
 	}
 }
 
-void LitWavesApp::BuildMaterials()
+void LitColumnsApp::BuildMaterials()
 {
-	auto bricks0 = std::make_unique<Material>();
-	bricks0->Name = "bricks0";
-	bricks0->MatCBIndex = 0;
-	bricks0->DiffuseSrvHeapIndex = 0;
-	bricks0->DiffuseAlbedo = XMFLOAT4(Colors::ForestGreen);
-	bricks0->FresnelRO = XMFLOAT3(0.02f, 0.02f, 0.02f);
-	bricks0->Roughness = 0.1f;
+	auto grass = std::make_unique<Material>();
+	grass->Name = "grass";
+	grass->MatCBIndex = 0;
+	grass->DiffuseAlbedo = XMFLOAT4(0.2f, 0.6f, 0.2f, 1.0f);
+	grass->FresnelRO = XMFLOAT3(0.01f, 0.01f, 0.01f);
+	grass->Roughness = 0.125f;
 
-	auto stone0 = std::make_unique<Material>();
-	stone0->Name = "stone0";
-	stone0->MatCBIndex = 1;
-	stone0->DiffuseSrvHeapIndex = 1;
-	stone0->DiffuseAlbedo = XMFLOAT4(Colors::LightSteelBlue);
-	stone0->FresnelRO = XMFLOAT3(0.05f, 0.05f, 0.05f);
-	stone0->Roughness = 0.3f;
+	// This is not a good water material definition, but we do not have all the rendering
+	// tools we need (transparency, environment reflection), so we fake it for now.
+	auto water = std::make_unique<Material>();
+	water->Name = "water";
+	water->MatCBIndex = 1;
+	water->DiffuseAlbedo = XMFLOAT4(0.0f, 0.2f, 0.6f, 1.0f);
+	water->FresnelRO = XMFLOAT3(0.1f, 0.1f, 0.1f);
+	water->Roughness = 0.0f;
 
-	auto tile0 = std::make_unique<Material>();
-	tile0->Name = "tile0";
-	tile0->MatCBIndex = 2;
-	tile0->DiffuseSrvHeapIndex = 2;
-	tile0->DiffuseAlbedo = XMFLOAT4(Colors::LightGray);
-	tile0->FresnelRO = XMFLOAT3(0.02f, 0.02f, 0.02f);
-	tile0->Roughness = 0.2f;
-
-	auto skullMat = std::make_unique<Material>();
-	skullMat->Name = "skullMat";
-	skullMat->MatCBIndex = 3;
-	skullMat->DiffuseSrvHeapIndex = 3;
-	skullMat->DiffuseAlbedo = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-	skullMat->FresnelRO = XMFLOAT3(0.05f, 0.05f, 0.05);
-	skullMat->Roughness = 0.3f;
-
-	mMaterials["bricks0"] = std::move(bricks0);
-	mMaterials["stone0"] = std::move(stone0);
-	mMaterials["tile0"] = std::move(tile0);
-	mMaterials["skullMat"] = std::move(skullMat);
+	mMaterials["grass"] = std::move(grass);
+	mMaterials["water"] = std::move(water);
 }
 
-void LitWavesApp::BuildRenderItems()
+void LitColumnsApp::BuildRenderItems()
 {
-	auto boxRitem = std::make_unique<RenderItem>();
-	XMStoreFloat4x4(&boxRitem->World, XMMatrixScaling(2.0f, 2.0f, 2.0f) * XMMatrixTranslation(0.0f, 0.5f, 0.0f));
-	XMStoreFloat4x4(&boxRitem->TexTransform, XMMatrixScaling(1.0f, 1.0f, 1.0f));
-	boxRitem->ObjCBIndex = 0;
-	boxRitem->Mat = mMaterials["stone0"].get();
-	boxRitem->Geo = mGeometries["shapeGeo"].get();
-	boxRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	boxRitem->IndexCount = boxRitem->Geo->DrawArgs["box"].IndexCount;
-	boxRitem->StartIndexLocation = boxRitem->Geo->DrawArgs["box"].StartIndexLocation;
-	boxRitem->BaseVertexLocation = boxRitem->Geo->DrawArgs["box"].BaseVertexLocation;
-	mAllRitems.push_back(std::move(boxRitem));
+	auto wavesRitem = std::make_unique<RenderItem>();
+	wavesRitem->World = MathHelper::Identity4x4();
+	wavesRitem->ObjCBIndex = 0;
+	wavesRitem->Mat = mMaterials["water"].get();
+	wavesRitem->Geo = mGeometries["waterGeo"].get();
+	wavesRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+	wavesRitem->IndexCount = wavesRitem->Geo->DrawArgs["grid"].IndexCount;
+	wavesRitem->StartIndexLocation = wavesRitem->Geo->DrawArgs["grid"].StartIndexLocation;
+	wavesRitem->BaseVertexLocation = wavesRitem->Geo->DrawArgs["grid"].BaseVertexLocation;
+
+	mWavesRitem = wavesRitem.get();
+
+	mRitemLayer[(int)RenderLayer::Opaque].push_back(wavesRitem.get());
 
 	auto gridRitem = std::make_unique<RenderItem>();
 	gridRitem->World = MathHelper::Identity4x4();
-	XMStoreFloat4x4(&gridRitem->TexTransform, XMMatrixScaling(8.0f, 8.0f, 1.0f));
 	gridRitem->ObjCBIndex = 1;
-	gridRitem->Mat = mMaterials["tile0"].get();
-	gridRitem->Geo = mGeometries["shapeGeo"].get();
+	gridRitem->Mat = mMaterials["grass"].get();
+	gridRitem->Geo = mGeometries["landGeo"].get();
 	gridRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
 	gridRitem->IndexCount = gridRitem->Geo->DrawArgs["grid"].IndexCount;
 	gridRitem->StartIndexLocation = gridRitem->Geo->DrawArgs["grid"].StartIndexLocation;
 	gridRitem->BaseVertexLocation = gridRitem->Geo->DrawArgs["grid"].BaseVertexLocation;
+
+	mRitemLayer[(int)RenderLayer::Opaque].push_back(gridRitem.get());
+
+	mAllRitems.push_back(std::move(wavesRitem));
 	mAllRitems.push_back(std::move(gridRitem));
-
-	/*auto skullRitem = std::make_unique<RenderItem>();
-	XMStoreFloat4x4(&skullRitem->World, XMMatrixScaling(0.5f, 0.5f, 0.5f) * XMMatrixTranslation(0.0f, 1.0f, 0.0f));
-	skullRitem->TexTransform = MathHelper::Identity4x4();
-	skullRitem->ObjCBIndex = 2;
-	skullRitem->Mat = mMaterials["skullMat"].get();
-	skullRitem->Geo = mGeometries["skullGeo"].get();
-	skullRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-	skullRitem->IndexCount = skullRitem->Geo->DrawArgs["skull"].IndexCount;
-	skullRitem->StartIndexLocation = skullRitem->Geo->DrawArgs["skull"].StartIndexLocation;
-	skullRitem->BaseVertexLocation = skullRitem->Geo->DrawArgs["skull"].BaseVertexLocation;
-	mAllRitems.push_back(std::move(skullRitem));*/
-
-	XMMATRIX brickTexTransform = XMMatrixScaling(1.0f, 1.0f, 1.0f);
-	UINT objCBIndex = 2;
-	for (int i = 0; i < 5; ++i)
-	{
-		auto leftCylRitem = std::make_unique<RenderItem>();
-		auto rightCylRitem = std::make_unique<RenderItem>();
-		auto leftSphereRitem = std::make_unique<RenderItem>();
-		auto rightSphereRitem = std::make_unique<RenderItem>();
-
-		XMMATRIX leftCylWorld = XMMatrixTranslation(-5.0f, 1.5f, -10.0f + i * 5.0f);
-		XMMATRIX rightCylWorld = XMMatrixTranslation(+5.0f, 1.5f, -10.0f + i * 5.0f);
-
-		XMMATRIX leftSphereWorld = XMMatrixTranslation(-5.0f, 3.5f, -10.0f + i * 5.0f);
-		XMMATRIX rightSphereWorld = XMMatrixTranslation(+5.0f, 3.5f, -10.0f + i * 5.0f);
-
-		XMStoreFloat4x4(&leftCylRitem->World, rightCylWorld);
-		XMStoreFloat4x4(&leftCylRitem->TexTransform, brickTexTransform);
-		leftCylRitem->ObjCBIndex = objCBIndex++;
-		leftCylRitem->Mat = mMaterials["bricks0"].get();
-		leftCylRitem->Geo = mGeometries["shapeGeo"].get();
-		leftCylRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-		leftCylRitem->IndexCount = leftCylRitem->Geo->DrawArgs["cylinder"].IndexCount;
-		leftCylRitem->StartIndexLocation = leftCylRitem->Geo->DrawArgs["cylinder"].StartIndexLocation;
-		leftCylRitem->BaseVertexLocation = leftCylRitem->Geo->DrawArgs["cylinder"].BaseVertexLocation;
-
-		XMStoreFloat4x4(&rightCylRitem->World, leftCylWorld);
-		XMStoreFloat4x4(&rightCylRitem->TexTransform, brickTexTransform);
-		rightCylRitem->ObjCBIndex = objCBIndex++;
-		rightCylRitem->Mat = mMaterials["bricks0"].get();
-		rightCylRitem->Geo = mGeometries["shapeGeo"].get();
-		rightCylRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-		rightCylRitem->IndexCount = rightCylRitem->Geo->DrawArgs["cylinder"].IndexCount;
-		rightCylRitem->StartIndexLocation = rightCylRitem->Geo->DrawArgs["cylinder"].StartIndexLocation;
-		rightCylRitem->BaseVertexLocation = rightCylRitem->Geo->DrawArgs["cylinder"].BaseVertexLocation;
-
-		XMStoreFloat4x4(&leftSphereRitem->World, leftSphereWorld);
-		leftSphereRitem->TexTransform = MathHelper::Identity4x4();
-		leftSphereRitem->ObjCBIndex = objCBIndex++;
-		leftSphereRitem->Mat = mMaterials["stone0"].get();
-		leftSphereRitem->Geo = mGeometries["shapeGeo"].get();
-		leftSphereRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-		leftSphereRitem->IndexCount = leftSphereRitem->Geo->DrawArgs["sphere"].IndexCount;
-		leftSphereRitem->StartIndexLocation = leftSphereRitem->Geo->DrawArgs["sphere"].StartIndexLocation;
-		leftSphereRitem->BaseVertexLocation = leftSphereRitem->Geo->DrawArgs["sphere"].BaseVertexLocation;
-
-		XMStoreFloat4x4(&rightSphereRitem->World, rightSphereWorld);
-		rightSphereRitem->TexTransform = MathHelper::Identity4x4();
-		rightSphereRitem->ObjCBIndex = objCBIndex++;
-		rightSphereRitem->Mat = mMaterials["stone0"].get();
-		rightSphereRitem->Geo = mGeometries["shapeGeo"].get();
-		rightSphereRitem->PrimitiveType = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-		rightSphereRitem->IndexCount = rightSphereRitem->Geo->DrawArgs["sphere"].IndexCount;
-		rightSphereRitem->StartIndexLocation = rightSphereRitem->Geo->DrawArgs["sphere"].StartIndexLocation;
-		rightSphereRitem->BaseVertexLocation = rightSphereRitem->Geo->DrawArgs["sphere"].BaseVertexLocation;
-
-		mAllRitems.push_back(std::move(leftCylRitem));
-		mAllRitems.push_back(std::move(rightCylRitem));
-		mAllRitems.push_back(std::move(leftSphereRitem));
-		mAllRitems.push_back(std::move(rightSphereRitem));
-	}
-
-	// All the render items are opaque.
-	for (auto& e : mAllRitems)
-		mRitemLayer[(int)RenderLayer::Opaque].push_back(e.get());
 }
 
-void LitWavesApp::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems)
+void LitColumnsApp::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std::vector<RenderItem*>& ritems)
 {
 	UINT objCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(_NORMAL_::ObjectConstants));
 	UINT matCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(MaterialConstants));
@@ -888,12 +775,12 @@ void LitWavesApp::DrawRenderItems(ID3D12GraphicsCommandList* cmdList, const std:
 	}
 }
 
-float LitWavesApp::GetHillsHeight(float x, float z)const
+float LitColumnsApp::GetHillsHeight(float x, float z)const
 {
 	return 0.3f * (z * sinf(0.1f * x) + x * cosf(0.1f * z));
 }
 
-XMFLOAT3 LitWavesApp::GetHillsNormal(float x, float z)const
+XMFLOAT3 LitColumnsApp::GetHillsNormal(float x, float z)const
 {
 	// n = (-df/dx, 1, -df/dz)
 	XMFLOAT3 n(
