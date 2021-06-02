@@ -5,6 +5,7 @@
 #include "dxgi1_6.h"
 #include "vector"
 #include <iostream>
+#include "string"
 
 LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -60,6 +61,43 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 		i++;
 	}
 	;
+	DXGI_FORMAT mBackBufferFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+	for (int i = 0 ;i<adapterList.size();i++)
+	{
+		IDXGIAdapter1* adapter = adapterList[i];
+		IDXGIOutput* output = nullptr;
+		int j = 0;
+		while (adapter->EnumOutputs(j,&output) != DXGI_ERROR_NOT_FOUND)
+		{
+			DXGI_OUTPUT_DESC desc;
+			output->GetDesc(&desc);
+
+			std::wstring text = L"** Ouput:";
+			text += desc.DeviceName;
+			text += L"\n";
+			OutputDebugString(text.c_str());
+			++j;
+
+
+			UINT count = 0;
+			UINT flags = 0;
+			output->GetDisplayModeList(mBackBufferFormat, flags, &count, nullptr);
+			std::vector<DXGI_MODE_DESC> modelist(count);
+			output->GetDisplayModeList(mBackBufferFormat, flags, &count, &modelist[0]);
+			for (const auto& x : modelist)
+			{
+				UINT n = x.RefreshRate.Numerator;
+				UINT d = x.RefreshRate.Denominator;
+				std::wstring text =
+					L"Width = " + std::to_wstring(x.Width) + L" " +
+					L"Height = " + std::to_wstring(x.Height) + L" " +
+					L"Refresh = " + std::to_wstring(n) + L"/" + std::to_wstring(d) +
+					L"\n";
+
+				::OutputDebugString(text.c_str());
+			}
+		}
+	}
 
 	ShowWindow(mhMainWnd, SW_SHOW);
 	UpdateWindow(mhMainWnd);
