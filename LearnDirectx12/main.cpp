@@ -30,6 +30,7 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 		return false;
 	}
 
+	using Microsoft::WRL::ComPtr;
 	RECT R = { 0,0,800,800 };
 	AdjustWindowRect(&R, WS_OVERLAPPEDWINDOW, false);
 	int width = R.right - R.left;
@@ -99,6 +100,65 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 		}
 	}
 
+	ID3D12Device2* Device = nullptr;
+
+	HRESULT hardwareResult = D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&Device));
+
+	//创建device
+	if (hardwareResult == S_FALSE)
+	{
+		Microsoft::WRL::ComPtr<IDXGIAdapter1> adapter;
+		Factory->EnumWarpAdapter(IID_PPV_ARGS(&adapter));
+		D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&Device));
+	}
+
+	if (Device == nullptr)
+	{
+		return false;
+	}
+
+	//创建Fence
+	{
+		ID3D12Fence1* Fence = nullptr;
+		Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&Fence));
+		
+		UINT RTVSize = Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+		UINT DSVSize = Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+		UINT CBVSRVUAVSize = Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+		UINT i = 0;
+	}
+
+	//检测GPU是否对MSAA质量级别的支持
+	{
+		D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS msQualityLvels;
+		msQualityLvels.Format = mBackBufferFormat;
+		msQualityLvels.SampleCount = 4;
+		msQualityLvels.Flags = D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE;
+		msQualityLvels.NumQualityLevels = 0;
+
+		Device->CheckFeatureSupport(D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS, &msQualityLvels,sizeof(msQualityLvels));
+		UINT i = 0;
+	}
+
+	//创建渲染命令队列；命令列表；命令分配器
+	{
+		//1:创建渲染队列
+		ComPtr<ID3D12CommandQueue> CommandQueue;
+		D3D12_COMMAND_QUEUE_DESC commandQueueDesc = {};
+		commandQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+		commandQueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+		Device->CreateCommandQueue(&commandQueueDesc,IID_PPV_ARGS(&CommandQueue));
+
+		//2:创建渲染命令分配器
+		ComPtr<ID3D12CommandAllocator> CommandAllocator = {};
+		Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,IID_PPV_ARGS(&CommandAllocator));
+
+		//3:创建渲染命令列表
+		ComPtr<ID3D12GraphicsCommandList2> CommandList = {};
+		Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, CommandAllocator.Get(), nullptr, IID_PPV_ARGS(CommandList.GetAddressOf()));
+		CommandList->Close();
+	}
 	ShowWindow(mhMainWnd, SW_SHOW);
 	UpdateWindow(mhMainWnd);
 	
