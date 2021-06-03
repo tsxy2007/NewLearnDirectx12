@@ -99,7 +99,12 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 			}
 		}
 	}
-
+	// 启动debug层;
+	{
+		ComPtr<ID3D12Debug> debugController;
+		D3D12GetDebugInterface(IID_PPV_ARGS(&debugController));
+		debugController->EnableDebugLayer();
+	}
 	ID3D12Device2* Device = nullptr;
 
 	HRESULT hardwareResult = D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&Device));
@@ -158,6 +163,51 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 		ComPtr<ID3D12GraphicsCommandList2> CommandList = {};
 		Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, CommandAllocator.Get(), nullptr, IID_PPV_ARGS(CommandList.GetAddressOf()));
 		CommandList->Close();
+
+	// 描述并创建交换链
+		static const int SwapChainBufferCount = 2;
+		ComPtr<IDXGISwapChain> SwapChain;
+		SwapChain.Reset();
+		DXGI_SWAP_CHAIN_DESC sd;
+		sd.BufferDesc.Width = 800;
+		sd.BufferDesc.Height = 600;
+		sd.BufferDesc.RefreshRate.Numerator = 60;
+		sd.BufferDesc.RefreshRate.Denominator = 1;
+		sd.BufferDesc.Format = mBackBufferFormat;
+		sd.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
+		sd.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
+		sd.SampleDesc.Count = 1; // 多重采样
+		sd.SampleDesc.Quality = 0;
+		sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+		sd.BufferCount = SwapChainBufferCount;
+		sd.OutputWindow = mhMainWnd;
+		sd.Windowed = true;
+		sd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+		sd.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+		Factory->CreateSwapChain(CommandQueue.Get(),
+			&sd, 
+			SwapChain.GetAddressOf());
+		
+
+		// 创建描述符堆
+		ComPtr<ID3D12DescriptorHeap> rtvDescriptor;
+		D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc;
+		rtvHeapDesc.NumDescriptors = SwapChainBufferCount;
+		rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+		rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+		rtvHeapDesc.NodeMask = 0;
+
+		Device->CreateDescriptorHeap(&rtvHeapDesc, 
+			IID_PPV_ARGS(rtvDescriptor.GetAddressOf()));
+
+		ComPtr<ID3D12DescriptorHeap> dsvHeap;
+		D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
+		dsvHeapDesc.NumDescriptors = 1;
+		dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+		dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+		dsvHeapDesc.NodeMask = 0;
+		Device->CreateDescriptorHeap(&dsvHeapDesc, 
+			IID_PPV_ARGS(dsvHeap.GetAddressOf()));
 	}
 	ShowWindow(mhMainWnd, SW_SHOW);
 	UpdateWindow(mhMainWnd);
