@@ -208,6 +208,9 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 		dsvHeapDesc.NodeMask = 0;
 		Device->CreateDescriptorHeap(&dsvHeapDesc, 
 			IID_PPV_ARGS(dsvHeap.GetAddressOf()));
+
+		// 创建渲染目标视图
+
 	}
 	ShowWindow(mhMainWnd, SW_SHOW);
 	UpdateWindow(mhMainWnd);
