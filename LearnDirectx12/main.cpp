@@ -29,9 +29,10 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 		MessageBox(NULL, L"RegisterClass Failed.", 0, 0);
 		return false;
 	}
-
+	UINT mClientWidth = 800;
+	UINT mClientHeight = 800;
 	using Microsoft::WRL::ComPtr;
-	RECT R = { 0,0,800,800 };
+	RECT R = { 0,0,mClientWidth,mClientHeight };
 	AdjustWindowRect(&R, WS_OVERLAPPEDWINDOW, false);
 	int width = R.right - R.left;
 	int height = R.bottom - R.top;
@@ -158,6 +159,27 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 		ComPtr<ID3D12GraphicsCommandList2> CommandList = {};
 		Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, CommandAllocator.Get(), nullptr, IID_PPV_ARGS(CommandList.GetAddressOf()));
 		CommandList->Close();
+
+		//4.描述创建交换链
+		DXGI_SWAP_CHAIN_DESC SwapChainDesc;
+		SwapChainDesc.BufferDesc.Width = mClientWidth;
+		SwapChainDesc.BufferDesc.Height = mClientHeight;
+		SwapChainDesc.BufferDesc.RefreshRate.Numerator = 60;
+		SwapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
+		SwapChainDesc.BufferDesc.Format = mBackBufferFormat;
+		SwapChainDesc.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
+		SwapChainDesc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
+		SwapChainDesc.SampleDesc.Count = 1;
+		SwapChainDesc.SampleDesc.Quality = 0;
+		SwapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT; //双缓冲必须设置
+		SwapChainDesc.BufferCount = 2; // 几个缓冲区;
+		SwapChainDesc.OutputWindow = mhMainWnd;
+		SwapChainDesc.Windowed = true;
+		SwapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+		SwapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+
+		ComPtr<IDXGISwapChain> SwapChain;
+		Factory->CreateSwapChain(CommandQueue.Get(), &SwapChainDesc, SwapChain.GetAddressOf());
 	}
 	ShowWindow(mhMainWnd, SW_SHOW);
 	UpdateWindow(mhMainWnd);
