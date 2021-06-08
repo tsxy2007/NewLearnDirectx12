@@ -29,9 +29,10 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 		MessageBox(NULL, L"RegisterClass Failed.", 0, 0);
 		return false;
 	}
-	UINT mClientWidth = 800;
-	UINT mClientHeight = 800;
+
 	using Microsoft::WRL::ComPtr;
+	LONG mClientWidth = 800;
+	LONG mClientHeight = 800;
 	RECT R = { 0,0,mClientWidth,mClientHeight };
 	AdjustWindowRect(&R, WS_OVERLAPPEDWINDOW, false);
 	int width = R.right - R.left;
@@ -100,7 +101,12 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 			}
 		}
 	}
-
+	// 启动debug层;
+	{
+		ComPtr<ID3D12Debug> debugController;
+		D3D12GetDebugInterface(IID_PPV_ARGS(&debugController));
+		debugController->EnableDebugLayer();
+	}
 	ID3D12Device2* Device = nullptr;
 
 	HRESULT hardwareResult = D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&Device));
@@ -128,10 +134,10 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 		UINT CBVSRVUAVSize = Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 		UINT i = 0;
-	}
+	
 
 	//检测GPU是否对MSAA质量级别的支持
-	{
+	
 		D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS msQualityLvels;
 		msQualityLvels.Format = mBackBufferFormat;
 		msQualityLvels.SampleCount = 4;
@@ -139,11 +145,11 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 		msQualityLvels.NumQualityLevels = 0;
 
 		Device->CheckFeatureSupport(D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS, &msQualityLvels,sizeof(msQualityLvels));
-		UINT i = 0;
-	}
+
+	
 
 	//创建渲染命令队列；命令列表；命令分配器
-	{
+	
 		//1:创建渲染队列
 		ComPtr<ID3D12CommandQueue> CommandQueue;
 		D3D12_COMMAND_QUEUE_DESC commandQueueDesc = {};
@@ -160,26 +166,105 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 		Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, CommandAllocator.Get(), nullptr, IID_PPV_ARGS(CommandList.GetAddressOf()));
 		CommandList->Close();
 
-		//4.描述创建交换链
-		DXGI_SWAP_CHAIN_DESC SwapChainDesc;
-		SwapChainDesc.BufferDesc.Width = mClientWidth;
-		SwapChainDesc.BufferDesc.Height = mClientHeight;
-		SwapChainDesc.BufferDesc.RefreshRate.Numerator = 60;
-		SwapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
-		SwapChainDesc.BufferDesc.Format = mBackBufferFormat;
-		SwapChainDesc.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
-		SwapChainDesc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
-		SwapChainDesc.SampleDesc.Count = 1;
-		SwapChainDesc.SampleDesc.Quality = 0;
-		SwapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT; //双缓冲必须设置
-		SwapChainDesc.BufferCount = 2; // 几个缓冲区;
-		SwapChainDesc.OutputWindow = mhMainWnd;
-		SwapChainDesc.Windowed = true;
-		SwapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-		SwapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
-
+	// 描述并创建交换链
+		static const int SwapChainBufferCount = 2;
 		ComPtr<IDXGISwapChain> SwapChain;
-		Factory->CreateSwapChain(CommandQueue.Get(), &SwapChainDesc, SwapChain.GetAddressOf());
+		SwapChain.Reset();
+		DXGI_SWAP_CHAIN_DESC sd;
+		sd.BufferDesc.Width = mClientWidth;
+		sd.BufferDesc.Height = mClientHeight;
+		sd.BufferDesc.RefreshRate.Numerator = 60;
+		sd.BufferDesc.RefreshRate.Denominator = 1;
+		sd.BufferDesc.Format = mBackBufferFormat;
+		sd.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
+		sd.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
+		sd.SampleDesc.Count = 1; // 多重采样
+		sd.SampleDesc.Quality = 0;
+		sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+		sd.BufferCount = SwapChainBufferCount;
+		sd.OutputWindow = mhMainWnd;
+		sd.Windowed = true;
+		sd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+		sd.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+		Factory->CreateSwapChain(CommandQueue.Get(),
+			&sd, 
+			SwapChain.GetAddressOf());
+		
+
+		// 创建描述符堆
+		ComPtr<ID3D12DescriptorHeap> rtvDescriptor;
+		D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc;
+		rtvHeapDesc.NumDescriptors = SwapChainBufferCount;
+		rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+		rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+		rtvHeapDesc.NodeMask = 0;
+
+		Device->CreateDescriptorHeap(&rtvHeapDesc, 
+			IID_PPV_ARGS(rtvDescriptor.GetAddressOf()));
+
+		ComPtr<ID3D12DescriptorHeap> dsvHeap;
+		D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
+		dsvHeapDesc.NumDescriptors = 1;
+		dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+		dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+		dsvHeapDesc.NodeMask = 0;
+		Device->CreateDescriptorHeap(&dsvHeapDesc, 
+			IID_PPV_ARGS(dsvHeap.GetAddressOf()));
+
+		// 创建渲染目标视图
+		
+		CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHeapHandle(
+			rtvDescriptor->GetCPUDescriptorHandleForHeapStart()
+		);
+		ComPtr<ID3D12Resource> Swapchainbuffer[SwapChainBufferCount];
+		for (UINT i = 0; i < SwapChainBufferCount; i++)
+		{
+			//1.获得存于交换链中的缓冲区资源
+			SwapChain->GetBuffer(SwapChainBufferCount, IID_PPV_ARGS(&Swapchainbuffer[i]));
+		    //2.创建RTV
+			Device->CreateRenderTargetView(Swapchainbuffer[i].Get(), nullptr, rtvHeapHandle);
+			//3.偏移到描述符堆中的下一个缓冲区
+			rtvHeapHandle.Offset(1, RTVSize);
+		}
+
+		// 创建深度/模板缓冲区及其视图
+		//1.通过填写D3D12_RESOURCE_DESC结构体描述纹理资源
+		ComPtr<ID3D12Resource> DepthStencilResource = nullptr;
+		DXGI_FORMAT mDepthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+
+		D3D12_RESOURCE_DESC depthStencilDesc;
+		depthStencilDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+		depthStencilDesc.Alignment = 0;
+		depthStencilDesc.Width = mClientWidth;
+		depthStencilDesc.Height = mClientHeight;
+		depthStencilDesc.DepthOrArraySize = 1;
+		depthStencilDesc.MipLevels = 1;
+		depthStencilDesc.Format = mDepthStencilFormat;
+		depthStencilDesc.SampleDesc.Count = 1;
+		depthStencilDesc.SampleDesc.Quality = 0;
+		depthStencilDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+		depthStencilDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+
+		D3D12_CLEAR_VALUE  optClear;
+		optClear.Format = mDepthStencilFormat;
+		optClear.DepthStencil.Depth = 1.f;
+		optClear.DepthStencil.Stencil = 0;
+		//2.再用ID3D12Device::CreateCommittedResource
+		Device->CreateCommittedResource(
+			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+			D3D12_HEAP_FLAG_NONE,
+			&depthStencilDesc,
+			D3D12_RESOURCE_STATE_COMMON,
+			&optClear,
+			IID_PPV_ARGS(DepthStencilResource.GetAddressOf())
+		);
+		//利用此资源的格式，为整个资源的第0mip层创建描述符；
+		/*Device->CreateDepthStencilView(
+			,
+			nullptr,
+			dep
+		)*/
 	}
 	ShowWindow(mhMainWnd, SW_SHOW);
 	UpdateWindow(mhMainWnd);
