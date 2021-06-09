@@ -230,7 +230,7 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 		// 创建深度/模板缓冲区及其视图
 		//1.通过填写D3D12_RESOURCE_DESC结构体描述纹理资源
 		ComPtr<ID3D12Resource> DepthStencilResource = nullptr;
-		DXGI_FORMAT mDepthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		DXGI_FORMAT mDepthStencilFormat = DXGI_FORMAT_R24G8_TYPELESS;
 
 		D3D12_RESOURCE_DESC depthStencilDesc;
 		depthStencilDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
@@ -260,11 +260,20 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 			IID_PPV_ARGS(DepthStencilResource.GetAddressOf())
 		);
 		//利用此资源的格式，为整个资源的第0mip层创建描述符；
-		/*Device->CreateDepthStencilView(
-			,
+		Device->CreateDepthStencilView(
+			DepthStencilResource.Get(),
 			nullptr,
-			dep
-		)*/
+			dsvHeap->GetCPUDescriptorHandleForHeapStart()
+		);
+		// 将资源从初始状态转换为深度缓冲区
+		CommandList->ResourceBarrier(
+			1,
+			&CD3DX12_RESOURCE_BARRIER::Transition(
+				DepthStencilResource.Get(),
+				D3D12_RESOURCE_STATE_COMMON,
+				D3D12_RESOURCE_STATE_DEPTH_WRITE
+			)
+		);
 	}
 	ShowWindow(mhMainWnd, SW_SHOW);
 	UpdateWindow(mhMainWnd);
