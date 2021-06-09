@@ -274,6 +274,20 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 				D3D12_RESOURCE_STATE_DEPTH_WRITE
 			)
 		);
+
+		// 设置视口
+		D3D12_VIEWPORT vp;
+		vp.TopLeftX = 0.f;
+		vp.TopLeftY = 0.f;
+		vp.Width = static_cast<float>(mClientWidth);
+		vp.Height = static_cast<float>(mClientHeight);
+		vp.MinDepth = 0.f;
+		vp.MaxDepth = 1.f;
+		CommandList->RSSetViewports(1, &vp);
+
+		// 设置裁剪矩形
+		D3D12_RECT mScissorRect = { 0,0,mClientWidth / 2,mClientHeight / 2 };
+		CommandList->RSSetScissorRects(1, &mScissorRect);
 	}
 	ShowWindow(mhMainWnd, SW_SHOW);
 	UpdateWindow(mhMainWnd);
