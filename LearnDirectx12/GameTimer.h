@@ -20,5 +20,7 @@ private:
 	__int64 mStopTime;
 	__int64 mPrevTime;
 	__int64 mCurrTime;
+
+	bool bStop;
 };
 
