@@ -39,6 +39,16 @@ protected:
 	virtual void OnMouseMove(WPARAM btnState, int x, int y) {}
 
 protected:
+	bool InitMainWindow();
+	bool InitDirect3D();
+	void CreateCommandObjects();
+	void CreateSwapChain();
 
+	void FlushCommandQueue();
+
+	ID3D12Resource* CurrentBackBuffer()const
+	{
+		return mSpawnChainBuffer[mCurrBackBuffer].Get();
+	}
 };
 
