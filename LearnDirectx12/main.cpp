@@ -1,15 +1,9 @@
-#include <windows.h>
-#include <xstring>
-#include "d3dx12.h"
-#include <wrl.h>
-#include "dxgi1_6.h"
-#include "vector"
-#include <iostream>
-#include "string"
+#include "d3dUtil.h"
+#include "D3DApp.h"
 
 LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-	return DefWindowProc(hwnd, msg, wParam, lParam);
+	return D3DApp::GetApp()->MsgProc(hwnd, msg, wParam, lParam);
 }
 int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPSTR lpCmdLine, _In_ int nShowCmd)
 {
