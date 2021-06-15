@@ -67,8 +67,31 @@ void D3DApp::Set4xMsaaState(bool value)
 
 int D3DApp::Run()
 {
-
-	return 0;
+	MSG msg = { 0 };
+	mTimer.Reset();
+	while (msg.message != WM_QUIT)
+	{
+		if (PeekMessage(&msg,0,0,0,PM_REMOVE))
+		{
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
+		}
+		else
+		{
+			mTimer.Tick();
+			if (!mAppPaused)
+			{
+				CalculateFrameStats();
+				Update(mTimer);
+				Draw(mTimer);
+			}
+			else
+			{
+				Sleep(100);
+			}
+		}
+	}
+	return (int)msg.wParam;
 }
 
 bool D3DApp::Initialize()
@@ -81,6 +104,7 @@ bool D3DApp::Initialize()
 	{
 		return false;
 	}
+	OnResize();
 	return true;
 }
 
@@ -91,7 +115,13 @@ LRESULT D3DApp::MsgProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 void D3DApp::CreateRtvAndDsvDescriptorHeaps()
 {
-
+	D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc;
+	rtvHeapDesc.NumDescriptors = SwapChainBufferCount;
+	rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+	rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+	rtvHeapDesc.NodeMask = 0;
+	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&rtvHeapDesc,
+		IID_PPV_ARGS(mRtvHeap.GetAddressOf())));
 
 }
 
