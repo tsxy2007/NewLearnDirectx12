@@ -242,8 +242,9 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 		optClear.DepthStencil.Depth = 1.f;
 		optClear.DepthStencil.Stencil = 0;
 		//2.再用ID3D12Device::CreateCommittedResource
+		CD3DX12_HEAP_PROPERTIES HeapProperties(D3D12_HEAP_TYPE_DEFAULT);
 		Device->CreateCommittedResource(
-			&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+			&HeapProperties,
 			D3D12_HEAP_FLAG_NONE,
 			&depthStencilDesc,
 			D3D12_RESOURCE_STATE_COMMON,
@@ -257,13 +258,14 @@ int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 			dsvHeap->GetCPUDescriptorHandleForHeapStart()
 		);
 		// 将资源从初始状态转换为深度缓冲区
+		CD3DX12_RESOURCE_BARRIER Ba = CD3DX12_RESOURCE_BARRIER::Transition(
+			DepthStencilResource.Get(),
+			D3D12_RESOURCE_STATE_COMMON,
+			D3D12_RESOURCE_STATE_DEPTH_WRITE
+		);
 		CommandList->ResourceBarrier(
 			1,
-			&CD3DX12_RESOURCE_BARRIER::Transition(
-				DepthStencilResource.Get(),
-				D3D12_RESOURCE_STATE_COMMON,
-				D3D12_RESOURCE_STATE_DEPTH_WRITE
-			)
+			&Ba
 		);
 
 		// 设置视口
