@@ -141,6 +141,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="D3DApp.cpp" />
+    <ClCompile Include="d3dUtil.cpp" />
     <ClCompile Include="GameTimer.cpp" />
     <ClCompile Include="main.cpp" />
   </ItemGroup>

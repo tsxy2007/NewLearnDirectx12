@@ -4,6 +4,16 @@ using Microsoft::WRL::ComPtr;
 using namespace std;
 using namespace DirectX;
 
+
+LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+	if (D3DApp::GetApp() != nullptr)
+	{
+		return D3DApp::GetApp()->MsgProc(hwnd, msg, wParam, lParam);
+	}
+	return DefWindowProc(hwnd, msg, wParam, lParam);
+}
+
 D3DApp* D3DApp::mApp = nullptr;
 
 D3DApp* D3DApp::GetApp()
@@ -63,7 +73,14 @@ int D3DApp::Run()
 
 bool D3DApp::Initialize()
 {
-
+	if (!InitMainWindow())
+	{
+		return false;
+	}
+	if (!InitDirect3D())
+	{
+		return false;
+	}
 	return true;
 }
 
@@ -85,12 +102,34 @@ void D3DApp::OnResize( )
 
 bool D3DApp::InitMainWindow()
 {
-
+	WNDCLASS wc;
+	wc.style = CS_HREDRAW | CS_VREDRAW;
+	wc.lpfnWndProc = MainWndProc;
+	wc.cbClsExtra = 0;
+	wc.cbWndExtra = 0;
+	wc.hInstance = mhAppInst;
+	wc.hIcon = LoadIcon(0, IDI_APPLICATION);
+	wc.hCursor = LoadCursor(0, IDC_ARROW);
+	wc.hbrBackground = (HBRUSH)GetStockObject(NULL_BRUSH);
+	wc.lpszMenuName = 0;
+	wc.lpszClassName = L"MainWnd";
+	if (!RegisterClass(&wc))
+	{
+		MessageBox(NULL, L"RegisterClass Failed.", 0, 0);
+		return false;
+	}
 	return true;
 }
 
 bool D3DApp::InitDirect3D()
 {
+#if defined (DEBUG) || defined(_DEBUG)
+	{
+		ComPtr<ID3D12Debug> debugController;
+		ThrowIfFailed(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)));
+		debugController->EnableDebugLayer();
+	}
+#endif
 	return true;
 }
 

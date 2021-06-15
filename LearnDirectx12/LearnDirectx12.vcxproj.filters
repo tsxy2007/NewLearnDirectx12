@@ -24,6 +24,9 @@
     <ClCompile Include="D3DApp.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="d3dUtil.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="d3dx12.h">

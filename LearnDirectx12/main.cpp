@@ -1,10 +1,7 @@
 #include "d3dUtil.h"
 #include "D3DApp.h"
 
-LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
-{
-	return D3DApp::GetApp()->MsgProc(hwnd, msg, wParam, lParam);
-}
+extern LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 int APIENTRY WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPSTR lpCmdLine, _In_ int nShowCmd)
 {
 	WNDCLASS wc;
