@@ -1,4 +1,5 @@
 #include "D3DApp.h"
+#include "d3dUtil.h"
 
 using Microsoft::WRL::ComPtr;
 using namespace std;
@@ -123,11 +124,32 @@ void D3DApp::CreateRtvAndDsvDescriptorHeaps()
 	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&rtvHeapDesc,
 		IID_PPV_ARGS(mRtvHeap.GetAddressOf())));
 
+	D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc;
+	dsvHeapDesc.NumDescriptors = 1;
+	dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+	dsvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+	dsvHeapDesc.NodeMask = 0;
+	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(
+		&dsvHeapDesc,
+		IID_PPV_ARGS(mDsvHeap.GetAddressOf())
+	));
 }
 
 void D3DApp::OnResize( )
 {
+	assert(md3dDevice);
+	assert(mSwapChain);
+	assert(mCommandAllocator);
 
+	FlushCommandQueue();
+
+	ThrowIfFailed(mCommandList->Reset(mCommandAllocator.Get(), nullptr));
+
+	for (int i = 0; i < SwapChainBufferCount; i++)
+	{
+		mSwapChainBuffer[i].Reset();
+	}
+	mDepthStencilBuffer.Reset();
 }
 
 bool D3DApp::InitMainWindow()
