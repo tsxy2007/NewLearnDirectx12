@@ -3,9 +3,6 @@
 #include "GameTimer.h"
 #include "d3dUtil.h"
 
-#pragma comment(lib,"d3dcompiler.lib")
-#pragma comment(lib,"D3D12.lib")
-#pragma comment(lib,"dxgi.lib")
 
 class D3DApp
 {
@@ -77,7 +74,7 @@ protected:
 
 	GameTimer mTimer;
 
-	Microsoft::WRL::ComPtr<IDXGIFactory> mdxgiFactory;
+	Microsoft::WRL::ComPtr<IDXGIFactory7> mdxgiFactory;
 	Microsoft::WRL::ComPtr<IDXGISwapChain> mSwapChain;
 	Microsoft::WRL::ComPtr<ID3D12Device> md3dDevice;
 	Microsoft::WRL::ComPtr<ID3D12Fence> mFence;
@@ -85,7 +82,7 @@ protected:
 
 	Microsoft::WRL::ComPtr<ID3D12CommandQueue> mCommandQueue;
 	Microsoft::WRL::ComPtr<ID3D12CommandAllocator> mCommandAllocator;
-	Microsoft::WRL::ComPtr<ID3D12CommandList> mCommandList;
+	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList6> mCommandList;
 
 	static const int  SwapChainBufferCount = 2;
 	int mCurrBackBuffer = 0;
