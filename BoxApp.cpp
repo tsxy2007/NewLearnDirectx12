@@ -56,34 +56,34 @@ private:
 
 	POINT mLastMousePos;
 };
-//
-//int WINAPI WinMain(
-//	_In_ HINSTANCE hInstance,
-//	_In_opt_ HINSTANCE hPrevInstance,
-//	_In_ LPSTR lpCmdLine,
-//	_In_ int nShowCmd)
-//{
-//#if defined(DEBUG) | defined(_DEBUG)
-//	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
-//#endif
-//	
-//	try
-//	{
-//		BoxApp theApp(hInstance);
-//		if (!theApp.Initialize())
-//		{
-//			return 0;
-//		}
-//
-//		int Size = sizeof(PassConstants);
-//		return theApp.Run();
-//	}
-//	catch (DxException& e)
-//	{
-//		MessageBox(nullptr, e.ToString().c_str(), L"HR Failed", MB_OK);
-//		return 0;
-//	}
-//}
+
+int WINAPI WinMain(
+	_In_ HINSTANCE hInstance,
+	_In_opt_ HINSTANCE hPrevInstance,
+	_In_ LPSTR lpCmdLine,
+	_In_ int nShowCmd)
+{
+#if defined(DEBUG) | defined(_DEBUG)
+	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+#endif
+	
+	try
+	{
+		BoxApp theApp(hInstance);
+		if (!theApp.Initialize())
+		{
+			return 0;
+		}
+
+		int Size = sizeof(PassConstants);
+		return theApp.Run();
+	}
+	catch (DxException& e)
+	{
+		MessageBox(nullptr, e.ToString().c_str(), L"HR Failed", MB_OK);
+		return 0;
+	}
+}
 
 BoxApp::BoxApp(HINSTANCE hInstance)
 	:D3DApp(hInstance)
@@ -172,7 +172,7 @@ void BoxApp::Draw(const GameTimer& gt)
 		D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET));
 
 	// 
-	mCommandList->ClearRenderTargetView(CurBackV, Colors::LightSteelBlue, 0, nullptr);
+	mCommandList->ClearRenderTargetView(CurBackV, Colors::LightBlue, 0, nullptr);
 	mCommandList->ClearDepthStencilView(DepthStencilV, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0, 0,nullptr);
 
 	mCommandList->OMSetRenderTargets(1, &CurBackV, true, &DepthStencilV);
@@ -282,7 +282,7 @@ void BoxApp::BuildRootSignature()
 
 	CD3DX12_DESCRIPTOR_RANGE cbvTable;
 
-	cbvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
+	cbvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);//
 	slotRootParameter[0].InitAsDescriptorTable(1, &cbvTable);
 
 	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(_countof(slotRootParameter), slotRootParameter, 0, nullptr,

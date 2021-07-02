@@ -3,6 +3,23 @@
 
 using Microsoft::WRL::ComPtr;
 
+
+Microsoft::WRL::ComPtr<ID3D12Resource> d3dUtil::CreateDefaultBuffer(
+	ID3D12Device* device,
+	ID3D12GraphicsCommandList* cmdList,
+	const void* initData,
+	UINT64 byteSize,
+	Microsoft::WRL::ComPtr<ID3D12Resource>& uploadBuffer)
+{
+	ComPtr<ID3D12Resource> defaultBuffer;
+
+	CD3DX12_HEAP_PROPERTIES DefaultBufferHeap = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
+	ThrowIfFailed(device->CreateCommittedResource(
+		&DefaultBufferHeap,
+
+	))I;
+}
+
 DxException::DxException() = default;
 
 DxException::DxException(HRESULT hr, const std::wstring& functionName, const std::wstring& fileName, int lineNumber)
