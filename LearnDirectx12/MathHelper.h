@@ -6,6 +6,7 @@
 
 class MathHelper
 {
+public:
 	static float RandF()
 	{
 		return (float)(rand()) / (float)RAND_MAX;
@@ -20,5 +21,7 @@ class MathHelper
 		);
 		return I;
 	}
+
+	static const float Pi;
 };
 

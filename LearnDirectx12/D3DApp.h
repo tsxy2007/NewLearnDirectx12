@@ -82,7 +82,7 @@ protected:
 
 	Microsoft::WRL::ComPtr<ID3D12CommandQueue> mCommandQueue;
 	Microsoft::WRL::ComPtr<ID3D12CommandAllocator> mCommandAllocator;
-	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList6> mCommandList;
+	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> mCommandList;
 
 	static const int  SwapChainBufferCount = 2;
 	int mCurrBackBuffer = 0;

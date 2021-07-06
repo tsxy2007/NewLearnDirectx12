@@ -20,6 +20,7 @@ public:
 private:
 	virtual void OnResize() override;
 	virtual void Update(const GameTimer& gt) override;
+	virtual void Draw(const GameTimer& gt) override;
 	virtual void OnMouseDown(WPARAM btnState, int x, int y) override;
 	virtual void OnMouseUp(WPARAM btnState, int x, int y) override;
 	virtual void OnMouseMove(WPARAM btnState, int x, int y) override;
@@ -75,7 +76,7 @@ int WINAPI WinMain(
 	}
 	catch (DxException* e)
 	{
-		MessageBox(nullptr, e.ToString().c_str(), L"HR Failed", MB_OK);
+		MessageBox(nullptr, e->ToString().c_str(), L"HR Failed", MB_OK);
 		return 0;
 	}
 }
@@ -98,9 +99,87 @@ bool BoxApp::Initialize()
 		return false;
 	}
 
-	ThrowIfFailed(mCommandList->Reset(mDirectCmdListAlloc.Get(), nullptr));
+	ThrowIfFailed(mCommandList->Reset(mCommandAllocator.Get(), nullptr));
 
+	BuildDescriptorHeaps();
+	BuildConstantBuffers();
+	BuildRootSignature();
+	BuildShaderAndInputLayout();
+	BuildBoxGemetry();
+	BuildPSO();
 
+	ThrowIfFailed(mCommandList->Close());
+	ID3D12CommandList* cmdList[] = { mCommandList.Get() };
+	mCommandQueue->ExecuteCommandLists(_countof(cmdList), cmdList);
 
-	return TRUE;
+	FlushCommandQueue();
+
+	return true;
+}
+
+void BoxApp::OnResize()
+{
+	D3DApp::OnResize();
+	XMMATRIX P = XMMatrixPerspectiveFovLH(0.25f * MathHelper::Pi, AspectRatio(), 1.f, 1000.f);
+	XMStoreFloat4x4(&mProj, P);
+}
+
+void BoxApp::Update(const GameTimer& gt)
+{
+	float x = mRadius * sinf(mPhi) * cosf(mTheta);
+	float z = mRadius * sinf(mPhi) * sinf(mTheta);
+	float y = mRadius * cosf(mPhi);
+
+	XMVECTOR pos = XMVectorSet(x, y, z, 1.f);
+	XMVECTOR target = XMVectorZero();
+}
+
+void BoxApp::Draw(const GameTimer& gt)
+{
+
+}
+
+void BoxApp::OnMouseDown(WPARAM btnState, int x, int y)
+{
+
+}
+
+void BoxApp::OnMouseUp(WPARAM btnState, int x, int y)
+{
+
+}
+
+void BoxApp::OnMouseMove(WPARAM btnState, int x, int y)
+{
+
+}
+
+void BoxApp::BuildDescriptorHeaps()
+{
+
+}
+
+void BoxApp::BuildConstantBuffers()
+{
+
+}
+
+void BoxApp::BuildRootSignature()
+{
+
+}
+
+void BoxApp::BuildShaderAndInputLayout()
+{
+
+}
+
+void BoxApp::BuildBoxGemetry()
+{
+
+}
+
+void BoxApp::BuildPSO()
+{
+
 }
