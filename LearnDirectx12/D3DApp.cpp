@@ -174,6 +174,25 @@ bool D3DApp::InitMainWindow()
 		MessageBox(NULL, L"RegisterClass Failed.", 0, 0);
 		return false;
 	}
+
+
+	// Compute window rectangle dimensions based on requested client area dimensions.
+	RECT R = { 0, 0, mClientWidth, mClientHeight };
+	AdjustWindowRect(&R, WS_OVERLAPPEDWINDOW, false);
+	int width = R.right - R.left;
+	int height = R.bottom - R.top;
+
+	mhMainWnd = CreateWindow(L"MainWnd", mMainWndCaption.c_str(),
+		WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, width, height, 0, 0, mhAppInst, 0);
+	if (!mhMainWnd)
+	{
+		MessageBox(0, L"CreateWindow Failed.", 0, 0);
+		return false;
+	}
+
+	ShowWindow(mhMainWnd, SW_SHOW);
+	UpdateWindow(mhMainWnd);
+
 	return true;
 }
 
@@ -258,7 +277,6 @@ void D3DApp::CreateCommandObjects()
 void D3DApp::CreateSwapChain()
 {
 	// 描述并创建交换链
-	static const int SwapChainBufferCount = 2;
 	mSwapChain.Reset();
 	DXGI_SWAP_CHAIN_DESC sd;
 	sd.BufferDesc.Width = mClientWidth;
@@ -268,17 +286,20 @@ void D3DApp::CreateSwapChain()
 	sd.BufferDesc.Format = mBackBufferFormat;
 	sd.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
 	sd.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
-	sd.SampleDesc.Count = 1; // 多重采样
-	sd.SampleDesc.Quality = 0;
+
+	sd.SampleDesc.Count = m4xMsaaState ? 4 : 1;
+	sd.SampleDesc.Quality = m4xMsaaState ? (m4xMsaaQuality - 1) : 0;
 	sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
 	sd.BufferCount = SwapChainBufferCount;
-	sd.OutputWindow = mhMainWnd;
+	sd.OutputWindow = MainWnd();
 	sd.Windowed = true;
 	sd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 	sd.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
-	mdxgiFactory->CreateSwapChain(mCommandQueue.Get(),
+
+	ThrowIfFailed(mdxgiFactory->CreateSwapChain(
+		mCommandQueue.Get(),
 		&sd,
-		mSwapChain.GetAddressOf());
+		mSwapChain.GetAddressOf()));
 }
 
 void D3DApp::FlushCommandQueue()
