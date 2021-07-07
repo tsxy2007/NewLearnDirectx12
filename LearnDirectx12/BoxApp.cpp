@@ -132,10 +132,57 @@ void BoxApp::Update(const GameTimer& gt)
 
 	XMVECTOR pos = XMVectorSet(x, y, z, 1.f);
 	XMVECTOR target = XMVectorZero();
+	XMVECTOR up = XMVectorSet(0.f, 1.f, 0.f, 0.f);
+
+	XMMATRIX view = XMMatrixLookAtLH(pos, target, up);
+	XMStoreFloat4x4(&mView, view);
+
+	XMMATRIX world = XMLoadFloat4x4(&mWorld);
+	XMMATRIX proj = XMLoadFloat4x4(&mProj);
+	XMMATRIX worldViewProj = world * view * proj;
+
+	ObjectConstants objCon;
+	XMStoreFloat4x4(&objCon.WorldViewProj, XMMatrixTranspose(worldViewProj));
+	mObjectCB->CopyData(0, objCon);
 }
 
 void BoxApp::Draw(const GameTimer& gt)
 {
+	D3D12_CPU_DESCRIPTOR_HANDLE CurBackViewHandle = CurrentBackBufferView();
+	D3D12_CPU_DESCRIPTOR_HANDLE DSViewHandle = DepthStencilView();
+
+	ID3D12Resource* CBBuffer = CurrentBackBuffer();
+
+	D3D12_VERTEX_BUFFER_VIEW VertexBufferView = mBoxGeo->VertexBufferView();
+	D3D12_INDEX_BUFFER_VIEW IndexBufferView = mBoxGeo->IndexBufferView();
+
+	//
+	ThrowIfFailed(mCommandAllocator->Reset());
+
+	//
+	ThrowIfFailed(mCommandList->Reset(mCommandAllocator.Get(), mPSO.Get()));
+
+	mCommandList->RSSetViewports(1, &mScreenViewport);
+	mCommandList->RSSetScissorRects(1, &mScissorRect);
+
+	//
+	mCommandList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(
+		CBBuffer,
+		D3D12_RESOURCE_STATE_PRESENT,
+		D3D12_RESOURCE_STATE_RENDER_TARGET
+	));
+
+	// 
+	mCommandList->ClearRenderTargetView(CurBackViewHandle, Colors::LightBlue, 0, nullptr);
+	mCommandList->ClearDepthStencilView(DSViewHandle, D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL, 1.f, 0, 0, nullptr);
+
+	mCommandList->OMSetRenderTargets(1, &CurBackViewHandle, true, &DSViewHandle);
+
+	ID3D12DescriptorHeap* descriptorHeaps[] = { mCbvHeap.Get() };
+	mCommandList->SetDescriptorHeaps(_countof(descriptorHeaps), descriptorHeaps);
+	mCommandList->SetGraphicsRootSignature(mRootSignature.Get());
+
+	mCommandList->IASetVertexBuffers(0, 1, &VertexBufferView); // setting vbo
 
 }
 
@@ -156,22 +203,66 @@ void BoxApp::OnMouseMove(WPARAM btnState, int x, int y)
 
 void BoxApp::BuildDescriptorHeaps()
 {
-
+	D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc;
+	cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	cbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	cbvHeapDesc.NodeMask = 0;
+	ThrowIfFailed(md3dDevice->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&mCbvHeap)));
 }
 
 void BoxApp::BuildConstantBuffers()
 {
+	mObjectCB = std::make_unique<UploadBuffer<ObjectConstants>>(md3dDevice.Get(), 1, true);
+	UINT objCBByteSize = d3dUtil::CalcConstantBufferByteSize(sizeof(ObjectConstants));
+	D3D12_GPU_VIRTUAL_ADDRESS cbAddress = mObjectCB->Resource()->GetGPUVirtualAddress();
+	int boxCBufIndex = 0;
+	boxCBufIndex += boxCBufIndex * objCBByteSize;
 
+	D3D12_CONSTANT_BUFFER_VIEW_DESC cbvDesc;
+	cbvDesc.BufferLocation = cbAddress;
+	cbvDesc.SizeInBytes = d3dUtil::CalcConstantBufferByteSize(sizeof(ObjectConstants));
+
+	md3dDevice->CreateConstantBufferView(&cbvDesc, mCbvHeap->GetCPUDescriptorHandleForHeapStart());
 }
 
 void BoxApp::BuildRootSignature()
 {
+	CD3DX12_ROOT_PARAMETER slotRootParameter[1];
 
+	CD3DX12_DESCRIPTOR_RANGE cbvTable;
+
+	cbvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
+	slotRootParameter[0].InitAsDescriptorTable(1, &cbvTable);
+
+	CD3DX12_ROOT_SIGNATURE_DESC rootSigDesc(_countof(slotRootParameter), slotRootParameter, 0, nullptr,
+		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+
+	ComPtr<ID3DBlob> serializedRootSig = nullptr;
+	ComPtr<ID3DBlob> errorBlob = nullptr;
+
+	HRESULT hr = D3D12SerializeRootSignature(&rootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1,
+		serializedRootSig.GetAddressOf(), errorBlob.GetAddressOf());
+
+	if (errorBlob != nullptr)
+	{
+		::OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+	}
+
+	ThrowIfFailed(hr);
+
+	ThrowIfFailed(md3dDevice->CreateRootSignature(
+		0,
+		serializedRootSig->GetBufferPointer(),
+		serializedRootSig->GetBufferSize(),
+		IID_PPV_ARGS(mRootSignature.GetAddressOf())
+	));
 }
 
 void BoxApp::BuildShaderAndInputLayout()
 {
+	HRESULT hr = S_OK;
 
+	mvsByteCode = d3dUtil::CompileShader("")
 }
 
 void BoxApp::BuildBoxGemetry()
