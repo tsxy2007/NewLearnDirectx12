@@ -136,3 +136,9 @@ public:
 #ifndef ReleaseCom
 #define ReleaseCom(x) {if (x){x->Release();x=0;}}
 #endif // !ReleaseCom
+
+template<class T>
+constexpr auto& keep(T&& x) noexcept
+{
+	return x;
+}
