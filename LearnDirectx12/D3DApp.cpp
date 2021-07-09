@@ -154,6 +154,76 @@ void D3DApp::OnResize( )
 		mSwapChainBuffer[i].Reset();
 	}
 	mDepthStencilBuffer.Reset();
+
+	// 重置交换缓冲区
+	ThrowIfFailed(mSwapChain->ResizeBuffers(
+		SwapChainBufferCount, mClientWidth, mClientHeight, mBackBufferFormat,
+		DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH
+	));
+
+	mCurrBackBuffer = 0;
+
+	CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHeapHandle(mRtvHeap->GetCPUDescriptorHandleForHeapStart());
+	for (UINT i = 0; i < SwapChainBufferCount; i++)
+	{
+		ThrowIfFailed(mSwapChain->GetBuffer(i, IID_PPV_ARGS(&mSwapChainBuffer[i])));
+		md3dDevice->CreateRenderTargetView(mSwapChainBuffer[i].Get(), nullptr, rtvHeapHandle);
+		rtvHeapHandle.Offset(1, mRtvDescriptorSize);
+	}
+
+	// 创建深度/模板缓冲区
+	D3D12_RESOURCE_DESC dsDesc;
+	dsDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	dsDesc.Alignment = 0;
+	dsDesc.Width = mClientWidth;
+	dsDesc.Height = mClientHeight;
+	dsDesc.DepthOrArraySize = 1;
+	dsDesc.MipLevels = 1;
+	dsDesc.Format = DXGI_FORMAT_R24G8_TYPELESS;
+	dsDesc.SampleDesc.Count = m4xMsaaState ? 4 : 1;
+	dsDesc.SampleDesc.Quality = m4xMsaaState ? (m4xMsaaQuality - 1) : 0;
+	dsDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+	dsDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+
+	D3D12_CLEAR_VALUE optClear;
+	optClear.Format = mDepthStencilFormat;
+	optClear.DepthStencil.Depth = 1.f;
+	optClear.DepthStencil.Stencil = 0;
+	ThrowIfFailed(md3dDevice->CreateCommittedResource(
+		&keep(CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT)),
+		D3D12_HEAP_FLAG_NONE,&dsDesc,D3D12_RESOURCE_STATE_COMMON,&optClear,
+		IID_PPV_ARGS(mDepthStencilBuffer.GetAddressOf())
+	));
+
+	// 
+	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc;
+	dsvDesc.Flags = D3D12_DSV_FLAG_NONE;
+	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+	dsvDesc.Format = mDepthStencilFormat;
+	dsvDesc.Texture2D.MipSlice = 0;
+
+	md3dDevice->CreateDepthStencilView(mDepthStencilBuffer.Get(), &dsvDesc, DepthStencilView());
+
+	//转换资源属性
+	mCommandList->ResourceBarrier(1, &keep(CD3DX12_RESOURCE_BARRIER::Transition(mDepthStencilBuffer.Get(),
+		D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE)));
+
+	//
+	ThrowIfFailed(mCommandList->Close());
+	ID3D12CommandList* cmdsLists[] = { mCommandList.Get() };
+	mCommandQueue->ExecuteCommandLists(_countof(cmdsLists), cmdsLists);
+
+	// Complete
+	FlushCommandQueue();
+
+	// 更新视口
+	mScreenViewport.TopLeftX = 0;
+	mScreenViewport.TopLeftY = 0;
+	mScreenViewport.Width = static_cast<float>(mClientWidth);
+	mScreenViewport.Height = static_cast<float>(mClientHeight);
+	mScreenViewport.MinDepth = 0.f;
+	mScreenViewport.MaxDepth = 1.f;
+	mScissorRect = { 0,0,mClientWidth,mClientHeight };
 }
 
 bool D3DApp::InitMainWindow()

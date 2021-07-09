@@ -148,7 +148,6 @@ void BoxApp::Update(const GameTimer& gt)
 
 void BoxApp::Draw(const GameTimer& gt)
 {
-	return;
 	D3D12_CPU_DESCRIPTOR_HANDLE CurBackViewHandle = CurrentBackBufferView();
 	D3D12_CPU_DESCRIPTOR_HANDLE DSViewHandle = DepthStencilView();
 
@@ -184,7 +183,30 @@ void BoxApp::Draw(const GameTimer& gt)
 	mCommandList->SetGraphicsRootSignature(mRootSignature.Get());
 
 	mCommandList->IASetVertexBuffers(0, 1, &VertexBufferView); // setting vbo
+	mCommandList->IASetIndexBuffer(&IndexBufferView);// index buffer;
+	mCommandList->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	mCommandList->SetGraphicsRootDescriptorTable(0, mCbvHeap->GetGPUDescriptorHandleForHeapStart());
 
+	mCommandList->DrawIndexedInstanced(
+		mBoxGeo->DrawArgs["box"].IndexCount,
+		1, 0, 0, 0
+	);
+
+	// 转换资源
+	mCommandList->ResourceBarrier(1, &keep(
+		CD3DX12_RESOURCE_BARRIER::Transition(CurrentBackBuffer(),
+			D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT)));
+
+	ThrowIfFailed(mCommandList->Close());
+
+	ID3D12CommandList* cmdlists[] = { mCommandList.Get() };
+	mCommandQueue->ExecuteCommandLists(_countof(cmdlists), cmdlists);
+
+	ThrowIfFailed(mSwapChain->Present(0, 0));
+
+	mCurrBackBuffer = (mCurrBackBuffer + 1) % SwapChainBufferCount;
+
+	FlushCommandQueue();
 }
 
 void BoxApp::OnMouseDown(WPARAM btnState, int x, int y)
@@ -205,6 +227,7 @@ void BoxApp::OnMouseMove(WPARAM btnState, int x, int y)
 void BoxApp::BuildDescriptorHeaps()
 {
 	D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc;
+	cbvHeapDesc.NumDescriptors = 1;
 	cbvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	cbvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	cbvHeapDesc.NodeMask = 0;
@@ -263,8 +286,8 @@ void BoxApp::BuildShaderAndInputLayout()
 {
 	HRESULT hr = S_OK;
 
-	mvsByteCode = d3dUtil::CompileShader(L"Shaders\\color.hlsl", nullptr, "VS", "vs_5_0");
-	mpsByteCode = d3dUtil::CompileShader(L"Shaders\\color.hlsl", nullptr, "PS", "ps_5_0");
+	mvsByteCode = d3dUtil::CompileShader(L"Shaders\\Color.hlsl", nullptr, "VS", "vs_5_0");
+	mpsByteCode = d3dUtil::CompileShader(L"Shaders\\Color.hlsl", nullptr, "PS", "ps_5_0");
 
 	mInputLayout =
 	{
